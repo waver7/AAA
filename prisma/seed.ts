@@ -6,9 +6,9 @@ async function main() {
   console.log('🌱 Seeding AutoApply AI demo data...');
 
   const user = await prisma.user.upsert({
-    where: { email: 'demo@autoapply.ai' },
-    update: { name: 'Demo User' },
-    create: { email: 'demo@autoapply.ai', name: 'Demo User' }
+    where: { id: 'local-user' },
+    update: { name: 'Demo User', email: 'demo@autoapply.ai' },
+    create: { id: 'local-user', email: 'demo@autoapply.ai', name: 'Demo User' }
   });
 
   await prisma.userProfile.upsert({
@@ -16,23 +16,33 @@ async function main() {
     update: {
       headline: 'Senior Software Engineer',
       summary: 'TypeScript backend engineer focused on scalable platforms.',
+      phone: '+1 555 010 2000',
+      location: 'Remote, US',
       skills: ['TypeScript', 'Node.js', 'PostgreSQL', 'Redis', 'React'],
       preferredLocations: ['Remote'],
       preferredIndustries: ['SaaS', 'Developer Tools'],
       targetTitles: ['Senior Backend Engineer', 'Staff Engineer'],
       salaryTarget: 180000,
-      visaInfo: 'Authorized to work in US'
+      visaInfo: 'Authorized to work in US',
+      workHistory: [{ title: 'Senior Software Engineer', subtitle: 'Acme Cloud', startDate: '2021', endDate: 'Present' }],
+      education: [{ title: 'B.S. Computer Science', subtitle: 'State University' }],
+      certifications: ['AWS Certified Developer']
     },
     create: {
       userId: user.id,
       headline: 'Senior Software Engineer',
       summary: 'TypeScript backend engineer focused on scalable platforms.',
+      phone: '+1 555 010 2000',
+      location: 'Remote, US',
       skills: ['TypeScript', 'Node.js', 'PostgreSQL', 'Redis', 'React'],
       preferredLocations: ['Remote'],
       preferredIndustries: ['SaaS', 'Developer Tools'],
       targetTitles: ['Senior Backend Engineer', 'Staff Engineer'],
       salaryTarget: 180000,
-      visaInfo: 'Authorized to work in US'
+      visaInfo: 'Authorized to work in US',
+      workHistory: [{ title: 'Senior Software Engineer', subtitle: 'Acme Cloud', startDate: '2021', endDate: 'Present' }],
+      education: [{ title: 'B.S. Computer Science', subtitle: 'State University' }],
+      certifications: ['AWS Certified Developer']
     }
   });
 
@@ -102,7 +112,7 @@ async function main() {
         matchingSkills: job.externalId === 'demo-job-1' ? ['TypeScript', 'Node.js', 'PostgreSQL'] : ['TypeScript'],
         missingSkills: job.externalId === 'demo-job-1' ? ['Kubernetes'] : ['Terraform'],
         concerns: job.externalId === 'demo-job-2' ? ['Hybrid location may be a mismatch'] : ['Potential infrastructure depth gap'],
-        explanation: 'Demo fit score for onboarding and screenshots.'
+        explanation: JSON.stringify({ pitch: 'Strong seeded match for early local runs.', mismatchNotes: [] })
       },
       create: {
         id: `fit-${posting.id}`,
@@ -112,7 +122,7 @@ async function main() {
         matchingSkills: job.externalId === 'demo-job-1' ? ['TypeScript', 'Node.js', 'PostgreSQL'] : ['TypeScript'],
         missingSkills: job.externalId === 'demo-job-1' ? ['Kubernetes'] : ['Terraform'],
         concerns: job.externalId === 'demo-job-2' ? ['Hybrid location may be a mismatch'] : ['Potential infrastructure depth gap'],
-        explanation: 'Demo fit score for onboarding and screenshots.'
+        explanation: JSON.stringify({ pitch: 'Strong seeded match for early local runs.', mismatchNotes: [] })
       }
     });
 
@@ -121,20 +131,20 @@ async function main() {
 
   const appOne = await prisma.application.upsert({
     where: { id: 'demo-app-1' },
-    update: { status: ApplicationStatus.prepared, fitScore: 91 },
-    create: { id: 'demo-app-1', userId: user.id, jobPostingId: createdJobs[0].id, status: ApplicationStatus.prepared, fitScore: 91 }
+    update: { status: ApplicationStatus.prepared, fitScore: 91, notes: 'Resume tailored and ready for final review.', followUpDate: new Date('2026-03-20') },
+    create: { id: 'demo-app-1', userId: user.id, jobPostingId: createdJobs[0].id, status: ApplicationStatus.prepared, fitScore: 91, notes: 'Resume tailored and ready for final review.', followUpDate: new Date('2026-03-20') }
   });
 
   await prisma.application.upsert({
     where: { id: 'demo-app-2' },
-    update: { status: ApplicationStatus.applied, fitScore: 74 },
-    create: { id: 'demo-app-2', userId: user.id, jobPostingId: createdJobs[1].id, status: ApplicationStatus.applied, fitScore: 74 }
+    update: { status: ApplicationStatus.applied, fitScore: 74, notes: 'Applied via company portal.', dateApplied: new Date('2026-03-14') },
+    create: { id: 'demo-app-2', userId: user.id, jobPostingId: createdJobs[1].id, status: ApplicationStatus.applied, fitScore: 74, notes: 'Applied via company portal.', dateApplied: new Date('2026-03-14') }
   });
 
   await prisma.application.upsert({
     where: { id: 'demo-app-3' },
-    update: { status: ApplicationStatus.interview, fitScore: 68 },
-    create: { id: 'demo-app-3', userId: user.id, jobPostingId: createdJobs[2].id, status: ApplicationStatus.interview, fitScore: 68 }
+    update: { status: ApplicationStatus.interview, fitScore: 68, notes: 'Recruiter screen scheduled for next week.' },
+    create: { id: 'demo-app-3', userId: user.id, jobPostingId: createdJobs[2].id, status: ApplicationStatus.interview, fitScore: 68, notes: 'Recruiter screen scheduled for next week.' }
   });
 
   await prisma.tailoredResumeVariant.upsert({

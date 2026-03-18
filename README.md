@@ -23,8 +23,8 @@ AutoApply AI ingests jobs, explains fit scores, drafts tailored outreach/resume 
 ---
 
 ## ✨ Key features (MVP)
-- Resume upload + parsing endpoint
-- Job ingestion from Greenhouse + Lever URLs
+- Resume upload + structured PDF parsing with editable onboarding flow
+- Real job ingestion from Greenhouse + Lever board URLs
 - AI fit scoring with matching skills, missing skills, concerns, and mismatch notes
 - Recruiter outreach message generation
 - Tailored resume summary generation
@@ -73,6 +73,12 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+Then follow the main flow:
+1. Upload your resume on `/onboarding`
+2. Review and save parsed profile fields
+3. Ingest a real Greenhouse or Lever board on `/jobs`
+4. Prepare applications and track them on `/applications`
 
 > First run should be done in **demo mode** (default) before changing dependencies or infra settings.
 

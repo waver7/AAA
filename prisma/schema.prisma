@@ -46,37 +46,48 @@ model User {
 }
 
 model UserProfile {
-  id                String   @id @default(cuid())
-  userId             String   @unique
-  headline           String?
-  summary            String?
-  linkedinUrl        String?
-  githubUrl          String?
-  portfolioUrl       String?
-  skills             String[]
-  preferredLocations String[]
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  headline            String?
+  summary             String?
+  phone               String?
+  location            String?
+  linkedinUrl         String?
+  githubUrl           String?
+  portfolioUrl        String?
+  skills              String[]
+  preferredLocations  String[]
   preferredIndustries String[]
-  targetTitles       String[]
-  salaryTarget       Int?
-  visaInfo           String?
-  workMode           WorkMode?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  user               User     @relation(fields: [userId], references: [id])
+  targetTitles        String[]
+  salaryTarget        Int?
+  visaInfo            String?
+  workMode            WorkMode?
+  workHistory         Json?
+  education           Json?
+  certifications      String[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id])
 }
 
 model ResumeAsset {
-  id          String   @id @default(cuid())
-  userId       String
+  id             String   @id @default(cuid())
+  userId         String
   uploadedFileId String?
-  rawText     String
-  parsedName  String?
-  parsedEmail String?
-  parsedPhone String?
-  skills      String[]
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id])
-  uploadedFile UploadedFile? @relation(fields: [uploadedFileId], references: [id])
+  rawText        String
+  parsedName     String?
+  parsedEmail    String?
+  parsedPhone    String?
+  parsedLocation String?
+  summary        String?
+  links          String[]
+  skills         String[]
+  workHistory    Json?
+  education      Json?
+  certifications String[]
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id])
+  uploadedFile   UploadedFile? @relation(fields: [uploadedFileId], references: [id])
 }
 
 model JobSource {
