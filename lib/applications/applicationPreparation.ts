@@ -1,7 +1,7 @@
-import type { ResumeAsset, UploadedFile, User, UserProfile } from '@prisma/client';
 import { env } from '@/lib/validation/env';
+import { ResumeAsset, UploadedFile, User, UserProfile } from '@prisma/client';
 
-export type BrowserPreparationPacket = {
+export interface BrowserPreparationPacket {
   targetUrl: string;
   contactFields: Array<{ label: string; value: string }>;
   profileFields: Array<{ label: string; value: string }>;
@@ -17,17 +17,28 @@ export type BrowserPreparationPacket = {
     filename?: string;
     note: string;
     automationUploadReady: boolean;
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
     uploadAssistance: 'direct_file_input' | 'attach_prompt' | 'manual_only';
-=======
->>>>>>> master
   };
   automationEnabled: boolean;
   automationFields: Record<string, string>;
   resumeStoragePath?: string;
-};
+}
 
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
+interface BrowserPreparationInput {
+  user: Pick<User, 'name' | 'email'>;
+  profile?: Pick<
+    UserProfile,
+    'phone' | 'location' | 'summary' | 'skills' | 'linkedinUrl' | 'githubUrl' | 'portfolioUrl' | 'targetTitles' | 'visaInfo'
+  > | null;
+  resume?: BrowserPreparationResume | null;
+  job: { title: string; company: string; sourceUrl: string; easyApply?: boolean; sourceName?: string | null };
+}
+
+type BrowserPreparationResume = Pick<ResumeAsset, 'summary' | 'skills'> &
+  Partial<Pick<ResumeAsset, 'parsedName' | 'parsedEmail' | 'parsedPhone' | 'parsedLocation' | 'links' | 'workHistory' | 'education'>> & {
+    uploadedFile?: Pick<UploadedFile, 'filename' | 'storagePath'> | null;
+  };
+
 const DEFAULT_SELF_ID_ANSWERS = {
   requires_sponsorship: 'No',
   requires_visa_sponsorship: 'No',
@@ -44,19 +55,7 @@ const DEFAULT_SELF_ID_ANSWERS = {
   phone_country: 'United States'
 } as const;
 
-=======
->>>>>>> master
-export function buildBrowserPreparationPacket(input: {
-  user: Pick<User, 'name' | 'email'>;
-  profile?: Pick<
-    UserProfile,
-    'phone' | 'location' | 'summary' | 'skills' | 'linkedinUrl' | 'githubUrl' | 'portfolioUrl' | 'targetTitles' | 'visaInfo'
-  > | null;
-  resume?: ((Pick<ResumeAsset, 'summary' | 'skills'> & Partial<Pick<ResumeAsset, 'parsedName' | 'parsedEmail' | 'parsedPhone' | 'parsedLocation' | 'links' | 'workHistory' | 'education'>>) & {
-    uploadedFile?: Pick<UploadedFile, 'filename' | 'storagePath'> | null;
-  }) | null;
-  job: { title: string; company: string; sourceUrl: string; easyApply?: boolean; sourceName?: string | null };
-}): BrowserPreparationPacket {
+export function buildBrowserPreparationPacket(input: BrowserPreparationInput): BrowserPreparationPacket {
   const resolvedName = input.user.name || input.resume?.parsedName || '';
   const resolvedEmail = input.user.email || input.resume?.parsedEmail || '';
   const resolvedPhone = input.profile?.phone || input.resume?.parsedPhone || '';
@@ -65,16 +64,13 @@ export function buildBrowserPreparationPacket(input: {
   const skills = dedupe([...(input.profile?.skills ?? []), ...(input.resume?.skills ?? [])]).slice(0, 8);
   const targetTitles = dedupe(input.profile?.targetTitles ?? []).slice(0, 3);
   const sourceName = input.job.sourceName?.toLowerCase() ?? '';
-  const prefillSupport = input.job.easyApply || ['lever', 'ashby', 'workable', 'greenhouse'].some((label) => sourceName.includes(label)) ? 'best_effort' : 'copy_assist';
+  const prefillSupport =
+    input.job.easyApply || ['lever', 'ashby', 'workable', 'greenhouse'].some((label) => sourceName.includes(label)) ? 'best_effort' : 'copy_assist';
   const { firstName, lastName } = splitName(resolvedName);
   const locationBits = splitLocation(resolvedLocation);
   const inferredCountry = inferCountry(resolvedLocation, input.profile?.visaInfo);
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
   const phoneCountry = inferPhoneCountry(resolvedPhone, inferredCountry || locationBits.country);
   const sponsorshipAnswer = inferSponsorshipAnswer(input.profile?.visaInfo) || DEFAULT_SELF_ID_ANSWERS.requires_sponsorship;
-=======
-  const sponsorshipAnswer = inferSponsorshipAnswer(input.profile?.visaInfo);
->>>>>>> master
   const latestExperience = getFirstSectionRecord(input.resume?.workHistory);
   const latestEducation = getFirstSectionRecord(input.resume?.education);
   const linkedinUrl = input.profile?.linkedinUrl || input.resume?.links?.find((link) => link.includes('linkedin.com'));
@@ -95,7 +91,6 @@ export function buildBrowserPreparationPacket(input: {
     ['LinkedIn', linkedinUrl],
     ['GitHub', githubUrl],
     ['Portfolio', portfolioUrl],
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
     ['Work authorization', input.profile?.visaInfo ?? (sponsorshipAnswer === 'No' ? 'No sponsorship required' : '')],
     ['Gender', DEFAULT_SELF_ID_ANSWERS.gender],
     ['Race', DEFAULT_SELF_ID_ANSWERS.race],
@@ -104,9 +99,6 @@ export function buildBrowserPreparationPacket(input: {
     ['Disability status', DEFAULT_SELF_ID_ANSWERS.disability_status],
     ['Transgender', DEFAULT_SELF_ID_ANSWERS.transgender],
     ['Sexual orientation', DEFAULT_SELF_ID_ANSWERS.sexual_orientation],
-=======
-    ['Work authorization', input.profile?.visaInfo],
->>>>>>> master
     ['Short summary', summary]
   ]);
 
@@ -125,12 +117,9 @@ export function buildBrowserPreparationPacket(input: {
       ['state', locationBits.state],
       ['region', locationBits.state],
       ['country', inferredCountry || locationBits.country],
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
       ['phone_country', phoneCountry.country],
       ['phone_country_code', phoneCountry.display],
       ['country_code', phoneCountry.code],
-=======
->>>>>>> master
       ['linkedin', linkedinUrl],
       ['linkedin_url', linkedinUrl],
       ['github', githubUrl],
@@ -142,7 +131,6 @@ export function buildBrowserPreparationPacket(input: {
       ['requires_sponsorship', sponsorshipAnswer],
       ['requires_visa_sponsorship', sponsorshipAnswer],
       ['immigration_sponsorship', sponsorshipAnswer],
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
       ['gender', DEFAULT_SELF_ID_ANSWERS.gender],
       ['sex', DEFAULT_SELF_ID_ANSWERS.gender],
       ['race', DEFAULT_SELF_ID_ANSWERS.race],
@@ -154,47 +142,42 @@ export function buildBrowserPreparationPacket(input: {
       ['disability', DEFAULT_SELF_ID_ANSWERS.disability_status],
       ['transgender', DEFAULT_SELF_ID_ANSWERS.transgender],
       ['sexual_orientation', DEFAULT_SELF_ID_ANSWERS.sexual_orientation],
-=======
->>>>>>> master
       ['summary', summary]
     ])
-      .concat(compactFields([
-        ['skills', skills.join(', ')],
-        ['current_company', latestExperience.subtitle],
-        ['current_title', latestExperience.title],
-        ['company', latestExperience.subtitle],
-        ['job_title', latestExperience.title],
-        ['school', latestEducation.subtitle ?? latestEducation.title],
-        ['university', latestEducation.subtitle ?? latestEducation.title],
-        ['degree', latestEducation.title],
-        ['resume_keywords', skills.join(', ')]
-      ]))
+      .concat(
+        compactFields([
+          ['skills', skills.join(', ')],
+          ['current_company', latestExperience.subtitle],
+          ['current_title', latestExperience.title],
+          ['company', latestExperience.subtitle],
+          ['job_title', latestExperience.title],
+          ['school', latestEducation.subtitle ?? latestEducation.title],
+          ['university', latestEducation.subtitle ?? latestEducation.title],
+          ['degree', latestEducation.title],
+          ['resume_keywords', skills.join(', ')]
+        ])
+      )
       .map((entry) => [entry.label.toLowerCase().replace(/\s+/g, '_'), entry.value])
   );
-  const applicantDetailsText = [...contactFields, ...profileFields].map((entry) => `${entry.label}: ${entry.value}`).join('\n');
 
+  const applicantDetailsText = [...contactFields, ...profileFields].map((entry) => `${entry.label}: ${entry.value}`).join('\n');
   const resumeReady = Boolean(input.resume?.uploadedFile?.storagePath);
+
   const warnings = [
     !input.profile?.phone ? 'Add a phone number in onboarding before applying to forms that require it.' : '',
     !input.profile?.location ? 'Add your location so location-required applications are faster to complete.' : '',
     !summary ? 'Add a professional summary to speed up “Why are you interested?” style prompts.' : '',
     skills.length === 0 ? 'Add key skills so you have a concise copy/paste list for application forms.' : '',
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
     !resumeReady ? 'Upload a resume to enable resume-ready preparation and any best-effort file upload automation.' : '',
     resumeReady ? 'Resume upload automation works best on pages with a visible file input; attach-button flows may still require one manual click.' : ''
-=======
-    !resumeReady ? 'Upload a resume to enable resume-ready preparation and any best-effort file upload automation.' : ''
->>>>>>> master
   ].filter(Boolean);
 
   const checklist = [
     `Review the ${input.job.company} posting in the new tab before you fill anything out.`,
     'Use the copied applicant details to paste common fields into the external application form.',
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
-    resumeReady ? 'If the site uses an Attach button, click it when prompted so the browser can finish the resume upload where allowed.' : 'Upload your saved resume/CV manually before submitting.',
-=======
-    resumeReady ? 'Verify the selected resume/CV is the correct version before you submit.' : 'Upload your saved resume/CV manually before submitting.',
->>>>>>> master
+    resumeReady
+      ? 'If the site uses an Attach button, click it when prompted so the browser can finish the resume upload where allowed.'
+      : 'Upload your saved resume/CV manually before submitting.',
     'Confirm all answers, then submit manually yourself. AutoApply AI does not submit for you.'
   ];
 
@@ -208,12 +191,8 @@ export function buildBrowserPreparationPacket(input: {
     targetTitles.length ? `Target roles: ${targetTitles.join(', ')}.` : '',
     skills.length ? `Top skills: ${skills.join(', ')}.` : '',
     summary ? 'Summary ready for copy/paste.' : '',
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
     resumeReady ? `Resume ready: ${input.resume?.uploadedFile?.filename}.` : 'Resume upload still required.',
     'Self-ID defaults loaded for gender, race, Hispanic/Latino, veteran, disability, transgender, and sexual orientation questions.'
-=======
-    resumeReady ? `Resume ready: ${input.resume?.uploadedFile?.filename}.` : 'Resume upload still required.'
->>>>>>> master
   ]
     .filter(Boolean)
     .join(' ');
@@ -233,16 +212,10 @@ export function buildBrowserPreparationPacket(input: {
       ready: resumeReady,
       filename: input.resume?.uploadedFile?.filename ?? undefined,
       note: resumeReady
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
         ? 'Saved resume is ready for manual upload and optional best-effort automation. Some sites still require you to click an Attach button before the browser can supply the file.'
         : 'No saved resume is available yet. Upload one in onboarding before continuing.',
       automationUploadReady: Boolean(env.ENABLE_AUTOMATION === 'true' && resumeReady),
       uploadAssistance: resumeReady ? 'attach_prompt' : 'manual_only'
-=======
-        ? 'Saved resume is ready for manual upload and optional best-effort automation.'
-        : 'No saved resume is available yet. Upload one in onboarding before continuing.',
-      automationUploadReady: Boolean(env.ENABLE_AUTOMATION === 'true' && resumeReady)
->>>>>>> master
     },
     automationEnabled: env.ENABLE_AUTOMATION === 'true',
     automationFields,
@@ -274,6 +247,7 @@ function splitLocation(value: string) {
     .split(',')
     .map((part) => part.trim())
     .filter(Boolean);
+
   return {
     city: parts[0] ?? '',
     state: parts[1] ?? '',
@@ -283,7 +257,9 @@ function splitLocation(value: string) {
 
 function getFirstSectionRecord(value: unknown) {
   if (!Array.isArray(value)) return { title: '', subtitle: '' };
+
   const first = value.find((item) => item && typeof item === 'object') as { title?: unknown; subtitle?: unknown } | undefined;
+
   return {
     title: typeof first?.title === 'string' ? first.title : '',
     subtitle: typeof first?.subtitle === 'string' ? first.subtitle : ''
@@ -298,18 +274,21 @@ function inferCountry(location: string, visaInfo?: string | null) {
   return '';
 }
 
-<<<<<<< codex/build-mvp-for-autoapply-ai-platform
 function inferPhoneCountry(phone: string, country: string) {
   const normalizedPhone = phone.replace(/\s+/g, '');
+
   if (/canada/i.test(country)) {
     return { country: 'Canada', code: '+1', display: 'Canada (+1)' };
   }
+
   if (normalizedPhone.startsWith('+44') || /united kingdom|uk|england/i.test(country)) {
     return { country: 'United Kingdom', code: '+44', display: 'United Kingdom (+44)' };
   }
+
   if (normalizedPhone.startsWith('+1') || /united states|usa|us/i.test(country)) {
     return { country: 'United States', code: '+1', display: 'United States (+1)' };
   }
+
   return {
     country: country || DEFAULT_SELF_ID_ANSWERS.phone_country,
     code: '+1',
@@ -317,10 +296,9 @@ function inferPhoneCountry(phone: string, country: string) {
   };
 }
 
-=======
->>>>>>> master
 function inferSponsorshipAnswer(visaInfo?: string | null) {
   if (!visaInfo) return '';
+
   const normalized = visaInfo.toLowerCase();
   if (/authorized to work|no sponsorship|citizen|permanent resident|green card/.test(normalized)) return 'No';
   if (/require sponsorship|need sponsorship|visa required|h-1b/.test(normalized)) return 'Yes';
