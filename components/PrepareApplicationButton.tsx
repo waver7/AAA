@@ -34,6 +34,7 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
     setBusy(true);
     setMessage('');
     const prepWindow = typeof window !== 'undefined' ? window.open('', '_blank') : null;
+    renderPreparationWindow(prepWindow, 'Preparing application handoff…');
 
     try {
       const response = await fetch('/api/applications/prepare', {
@@ -45,16 +46,14 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
       setBusy(false);
 
       if (!response.ok) {
-        prepWindow?.close();
+        renderPreparationError(prepWindow, payload.error || 'Could not prepare application.');
         setMessage(payload.error || 'Could not prepare application.');
         return;
       }
 
       setBrowserPrep(payload.browserPrep);
       const extensionAvailable = await isAutofillExtensionAvailable();
-      if (payload.browserPrep.applicantDetailsText && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(payload.browserPrep.applicantDetailsText);
-      }
+      const copied = await safeCopyToClipboard(payload.browserPrep.applicantDetailsText);
       if (prepWindow) {
         prepWindow.location.href = payload.browserPrep.targetUrl;
       } else {
@@ -62,25 +61,26 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
       }
 
       if (extensionAvailable) {
-        const extensionResult = await requestExtensionAutofill({
+        const extensionResult = await safeRequestExtensionAutofill({
           targetUrl: payload.browserPrep.targetUrl,
           fields: payload.browserPrep.automationFields
         });
         if (extensionResult.accepted) {
-          setMessage('Application prepared. We opened the posting, copied your saved applicant details, and requested visible autofill in the new tab through the AutoApply browser extension.');
+          setMessage(`Application prepared. We opened the posting${copied ? ', copied your saved applicant details,' : ''} and requested visible autofill in the new tab through the AutoApply browser extension.`);
         } else {
-          setMessage('Application prepared. We opened the posting and copied your saved applicant details. The browser extension did not accept the autofill request, so use paste fallback if needed.');
+          setMessage(`Application prepared. We opened the posting${copied ? ' and copied your saved applicant details' : ''}. The browser extension did not accept the autofill request, so use paste fallback if needed.`);
         }
-      } else if (payload.browserPrep.applicantDetailsText) {
+      } else if (copied) {
         setMessage('Application prepared. We opened the posting and copied your saved applicant details so you can paste them into the external form. Install the optional AutoApply browser extension for visible autofill in the opened page.');
       } else {
-        setMessage('Application prepared. We opened the posting and assembled your browser-ready application packet below.');
+        setMessage('Application prepared. We opened the posting and assembled your browser-ready application packet below. Clipboard access was unavailable, so use the copy button if needed.');
       }
       router.refresh();
     } catch (error) {
-      prepWindow?.close();
       setBusy(false);
-      setMessage(error instanceof Error ? error.message : 'Could not prepare application.');
+      const message = error instanceof Error ? error.message : 'Could not prepare application.';
+      renderPreparationError(prepWindow, message);
+      setMessage(message);
     }
   }
 
@@ -142,6 +142,51 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
       ) : null}
     </div>
   );
+}
+
+async function safeCopyToClipboard(value: string) {
+  if (!value || !navigator.clipboard?.writeText) return false;
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function safeRequestExtensionAutofill(input: { targetUrl: string; fields: Record<string, string> }) {
+  try {
+    return await requestExtensionAutofill(input);
+  } catch {
+    return { accepted: false, reason: 'bridge_error' };
+  }
+}
+
+function renderPreparationWindow(target: Window | null, title: string) {
+  if (!target) return;
+  try {
+    target.document.title = title;
+    target.document.body.innerHTML = `
+      <div style="font-family: system-ui, sans-serif; padding: 24px; color: #e2e8f0; background: #020617;">
+        <h1 style="font-size: 18px; margin: 0 0 12px;">${title}</h1>
+        <p style="margin: 0; color: #94a3b8;">Please wait while AutoApply AI prepares your application tab.</p>
+      </div>
+    `;
+  } catch {}
+}
+
+function renderPreparationError(target: Window | null, message: string) {
+  if (!target) return;
+  try {
+    target.document.title = 'Application handoff failed';
+    target.document.body.innerHTML = `
+      <div style="font-family: system-ui, sans-serif; padding: 24px; color: #e2e8f0; background: #020617;">
+        <h1 style="font-size: 18px; margin: 0 0 12px;">Application handoff failed</h1>
+        <p style="margin: 0 0 12px; color: #fca5a5;">${message}</p>
+        <p style="margin: 0; color: #94a3b8;">You can close this tab and try again from AutoApply AI.</p>
+      </div>
+    `;
+  } catch {}
 }
 
 function FieldList({ title, items }: { title: string; items: Array<{ label: string; value: string }> }) {
