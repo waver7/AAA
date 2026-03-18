@@ -6,8 +6,8 @@ describe('buildBrowserPreparationPacket', () => {
     const packet = buildBrowserPreparationPacket({
       user: { name: 'Ada Lovelace', email: 'ada@example.com' },
       profile: {
-        phone: null,
-        location: 'Remote',
+        phone: '+1 415 555 0100',
+        location: 'Remote, CA, United States',
         summary: null,
         skills: ['TypeScript', 'Node.js'],
         linkedinUrl: 'https://linkedin.com/in/ada',
@@ -38,10 +38,21 @@ describe('buildBrowserPreparationPacket', () => {
     expect(packet.visibleBrowserPrefill).toBe(false);
     expect(packet.resume.ready).toBe(true);
     expect(packet.resume.filename).toBe('ada-resume.pdf');
+    expect(packet.resume.uploadAssistance).toBe('attach_prompt');
     expect(packet.applicantDetailsText).toMatch(/Ada Lovelace/);
     expect(packet.automationFields.first_name).toBe('Ada');
     expect(packet.automationFields.last_name).toBe('Lovelace');
     expect(packet.automationFields.preferred_first_name).toBe('Ada');
+    expect(packet.automationFields.requires_sponsorship).toBe('No');
+    expect(packet.automationFields.gender).toBe('Male');
+    expect(packet.automationFields.race).toBe('White');
+    expect(packet.automationFields.hispanic_or_latino).toBe('No');
+    expect(packet.automationFields.veteran_status).toBe('No');
+    expect(packet.automationFields.disability_status).toBe('No');
+    expect(packet.automationFields.transgender).toBe('No');
+    expect(packet.automationFields.sexual_orientation).toBe('Heterosexual');
+    expect(packet.automationFields.country).toBe('United States');
+    expect(packet.automationFields.phone_country_code).toBe('United States (+1)');
     expect(packet.contactFields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: 'Full name', value: 'Ada Lovelace' }),
@@ -49,8 +60,8 @@ describe('buildBrowserPreparationPacket', () => {
       ])
     );
     expect(packet.profileFields).toEqual(expect.arrayContaining([expect.objectContaining({ label: 'Work authorization' })]));
-    expect(packet.warnings.join(' ')).toMatch(/phone number/i);
     expect(packet.notes).toMatch(/Prepared browser handoff/i);
     expect(packet.prefillSummary).toMatch(/browser extension/i);
+    expect(packet.warnings.join(' ')).toMatch(/attach button/i);
   });
 });

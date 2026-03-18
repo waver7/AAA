@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db/prisma';
 
 export const LOCAL_USER_ID = 'local-user';
-export const LOCAL_USER_EMAIL = 'demo@autoapply.ai';
+export const LOCAL_USER_EMAIL = 'waverstar7@gmail.com';
 
 export async function getCurrentUser() {
   const byId = await prisma.user.findUnique({ where: { id: LOCAL_USER_ID } });
