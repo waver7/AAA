@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobSourceType {
+  greenhouse
+  lever
+  generic
+}
+
+enum WorkMode {
+  remote
+  hybrid
+  onsite
+}
+
+enum ApplicationStatus {
+  discovered
+  shortlisted
+  prepared
+  applied
+  recruiter_responded
+  interview
+  rejected
+  offer
+  archived
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  name         String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  profile      UserProfile?
+  resumes      ResumeAsset[]
+  applications Application[]
+  events       ApplicationEvent[]
+  uploads      UploadedFile[]
+  auditLogs    AuditLog[]
+}
+
+model UserProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  headline            String?
+  summary             String?
+  phone               String?
+  location            String?
+  linkedinUrl         String?
+  githubUrl           String?
+  portfolioUrl        String?
+  skills              String[]
+  preferredLocations  String[]
+  preferredIndustries String[]
+  targetTitles        String[]
+  salaryTarget        Int?
+  visaInfo            String?
+  workMode            WorkMode?
+  workHistory         Json?
+  education           Json?
+  certifications      String[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id])
+}
+
+model ResumeAsset {
+  id             String   @id @default(cuid())
+  userId         String
+  uploadedFileId String?
+  rawText        String
+  parsedName     String?
+  parsedEmail    String?
+  parsedPhone    String?
+  parsedLocation String?
+  summary        String?
+  links          String[]
+  skills         String[]
+  workHistory    Json?
+  education      Json?
+  certifications String[]
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id])
+  uploadedFile   UploadedFile? @relation(fields: [uploadedFileId], references: [id])
+}
+
+model JobSource {
+  id          String       @id @default(cuid())
+  name        String
+  sourceType  JobSourceType
+  baseUrl     String
+  isEnabled   Boolean      @default(true)
+  rateLimitRpm Int         @default(30)
+  createdAt   DateTime     @default(now())
+  postings    JobPosting[]
+}
+
+model JobPosting {
+  id            String      @id @default(cuid())
+  sourceId       String?
+  externalId     String
+  title         String
+  company       String
+  location      String
+  locationDetails String?
+  compensation  String?
+  compensationMin Int?
+  compensationMax Int?
+  compensationCurrency String?
+  compensationPeriod String?
+  description   String
+  sourceUrl     String
+  sourceType    JobSourceType
+  easyApply     Boolean     @default(false)
+  remote        Boolean     @default(false)
+  workplaceType String?
+  requirements  String[]
+  responsibilities String[]
+  qualifications String[]
+  preferredQualifications String[]
+  benefits     String[]
+  descriptionSections Json?
+  postedAt      DateTime?
+  updatedAt     DateTime?
+  employmentType String?
+  team         String?
+  seniority    String?
+  discoveredAt  DateTime    @default(now())
+  source        JobSource?  @relation(fields: [sourceId], references: [id])
+  fitScores     JobFitScore[]
+  applications  Application[]
+
+  @@unique([externalId, sourceType])
+}
+
+model JobFitScore {
+  id              String   @id @default(cuid())
+  userId           String
+  jobPostingId     String
+  score           Int
+  matchingSkills  String[]
+  missingSkills   String[]
+  concerns        String[]
+  explanation     String
+  createdAt       DateTime @default(now())
+  jobPosting      JobPosting @relation(fields: [jobPostingId], references: [id])
+}
+
+model TailoredResumeVariant {
+  id             String   @id @default(cuid())
+  userId          String
+  applicationId   String?
+  summary         String
+  bulletSuggestions String[]
+  prioritizedSkills String[]
+  createdAt      DateTime @default(now())
+}
+
+model CoverLetterVariant {
+  id             String   @id @default(cuid())
+  userId          String
+  applicationId   String?
+  content         String
+  createdAt      DateTime @default(now())
+}
+
+model OutreachMessage {
+  id             String   @id @default(cuid())
+  userId          String
+  applicationId   String?
+  channel         String
+  tone            String
+  content         String
+  createdAt      DateTime @default(now())
+}
+
+model Application {
+  id                String            @id @default(cuid())
+  userId             String
+  jobPostingId       String
+  status             ApplicationStatus @default(discovered)
+  fitScore           Int?
+  dateApplied        DateTime?
+  followUpDate       DateTime?
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  user               User              @relation(fields: [userId], references: [id])
+  jobPosting         JobPosting        @relation(fields: [jobPostingId], references: [id])
+  events             ApplicationEvent[]
+  automationRuns     AutomationRun[]
+}
+
+model ApplicationEvent {
+  id             String   @id @default(cuid())
+  userId          String
+  applicationId   String
+  eventType       String
+  payload         Json
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id])
+  application    Application @relation(fields: [applicationId], references: [id])
+}
+
+model AutomationRun {
+  id              String   @id @default(cuid())
+  applicationId    String
+  targetUrl        String
+  status           String
+  stepLogs         String[]
+  screenshotPath   String?
+  errorMessage     String?
+  createdAt       DateTime @default(now())
+  application     Application @relation(fields: [applicationId], references: [id])
+}
+
+model UploadedFile {
+  id           String   @id @default(cuid())
+  userId        String
+  filename      String
+  mimeType      String
+  storagePath   String
+  createdAt     DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
+  resumeAssets ResumeAsset[]
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId      String
+  action      String
+  actorType   String
+  metadata    Json
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
