@@ -74,6 +74,7 @@ export async function getJobDetail(jobId: string) {
 
   const fit = job.fitScores[0];
   const meta = safeParseExplanation(fit?.explanation);
+  const descriptionSections = safeParseDescriptionSections(job.descriptionSections);
   return {
     ...job,
     sourceName: job.source?.name ?? job.sourceType,
@@ -83,6 +84,7 @@ export async function getJobDetail(jobId: string) {
     concerns: fit?.concerns ?? [],
     pitch: meta.pitch ?? 'Complete onboarding to improve this fit explanation.',
     mismatchNotes: meta.mismatchNotes ?? [],
+    descriptionSections,
     application: job.applications[0] ?? null
   };
 }
@@ -116,4 +118,19 @@ function safeParseExplanation(explanation?: string | null): { pitch?: string; mi
   } catch {
     return { pitch: explanation };
   }
+}
+
+function safeParseDescriptionSections(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((section) => {
+      if (!section || typeof section !== 'object') return null;
+      const title = typeof (section as { title?: unknown }).title === 'string' ? (section as { title: string }).title : '';
+      const items = Array.isArray((section as { items?: unknown[] }).items)
+        ? (section as { items: unknown[] }).items.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        : [];
+      if (!title || items.length === 0) return null;
+      return { title, items };
+    })
+    .filter((section): section is { title: string; items: string[] } => Boolean(section));
 }

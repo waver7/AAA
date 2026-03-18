@@ -108,7 +108,12 @@ model JobPosting {
   title         String
   company       String
   location      String
+  locationDetails String?
   compensation  String?
+  compensationMin Int?
+  compensationMax Int?
+  compensationCurrency String?
+  compensationPeriod String?
   description   String
   sourceUrl     String
   sourceType    JobSourceType
@@ -116,7 +121,16 @@ model JobPosting {
   remote        Boolean     @default(false)
   workplaceType String?
   requirements  String[]
+  responsibilities String[]
+  qualifications String[]
+  preferredQualifications String[]
+  benefits     String[]
+  descriptionSections Json?
   postedAt      DateTime?
+  updatedAt     DateTime?
+  employmentType String?
+  team         String?
+  seniority    String?
   discoveredAt  DateTime    @default(now())
   source        JobSource?  @relation(fields: [sourceId], references: [id])
   fitScores     JobFitScore[]

@@ -1,5 +1,15 @@
 import { normalizeIngestedJob } from './jobNormalization';
-import { extractRequirements } from './shared';
+import {
+  extractCompensationFromText,
+  extractDescriptionSections,
+  extractRequirements,
+  htmlToStructuredText,
+  inferEmploymentType,
+  inferSeniority,
+  normalizeCompensation,
+  pickSectionItems,
+  summarizeBenefits
+} from './shared';
 import type { IngestedJob, JobSourceAdapter } from './types';
 
 export class WorkableAdapter implements JobSourceAdapter {
@@ -22,23 +32,46 @@ export class WorkableAdapter implements JobSourceAdapter {
     return (payload.jobs ?? []).map((job) => {
       const location = job.location as { location_str?: string; workplace_type?: string; telecommuting?: boolean } | undefined;
       const workplaceType = location?.workplace_type?.replace('_', ' ');
-      const description = String(job.description ?? job.description_plain ?? '');
-      const compensation = formatSalary(job.salary as { salary_from?: number; salary_to?: number; salary_currency?: string } | undefined);
+      const description = htmlToStructuredText(String(job.description ?? job.description_plain ?? ''));
+      const sections = extractDescriptionSections(description);
+      const salary = job.salary as { salary_from?: number; salary_to?: number; salary_currency?: string } | undefined;
+      const compensation =
+        normalizeCompensation({
+          text: formatSalary(salary),
+          min: salary?.salary_from,
+          max: salary?.salary_to,
+          currency: salary?.salary_currency?.toUpperCase(),
+          period: 'year'
+        }) ?? extractCompensationFromText(description);
 
       return normalizeIngestedJob({
         externalId: String(job.id ?? job.shortcode ?? job.url),
         title: String(job.title ?? 'Untitled role'),
         company: account,
         location: String(location?.location_str ?? (location?.telecommuting ? 'Remote' : 'Unknown')),
+        locationDetails: String((job as { location_string?: string }).location_string ?? '') || undefined,
         description,
         sourceUrl: String(job.application_url ?? job.shortlink ?? job.url ?? url),
         sourceType: this.sourceType,
         sourceName: this.sourceName,
         easyApply: true,
-        compensation,
+        compensation: compensation?.text,
+        compensationMin: compensation?.min,
+        compensationMax: compensation?.max,
+        compensationCurrency: compensation?.currency,
+        compensationPeriod: compensation?.period,
         requirements: extractRequirements(description),
+        responsibilities: pickSectionItems(sections, 'responsibilities'),
+        qualifications: pickSectionItems(sections, 'qualifications'),
+        preferredQualifications: pickSectionItems(sections, 'preferredQualifications'),
+        benefits: summarizeBenefits(sections),
+        descriptionSections: sections,
         postedAt: typeof job.created_at === 'string' ? job.created_at : undefined,
-        workplaceType: location?.telecommuting ? 'remote' : workplaceType
+        updatedAt: typeof job.updated_at === 'string' ? job.updated_at : undefined,
+        workplaceType: location?.telecommuting ? 'remote' : workplaceType,
+        employmentType: inferEmploymentType(String((job as { employment_type?: string }).employment_type ?? ''), description),
+        team: String((job as { department?: string }).department ?? '') || undefined,
+        seniority: inferSeniority(String(job.title ?? ''), description)
       });
     });
   }

@@ -24,12 +24,34 @@ export async function POST(request: NextRequest) {
   const result = scoreJobFit(
     {
       externalId: 'inline',
+      title: parsed.data.job.title,
       company: 'unknown',
+      location: parsed.data.job.location,
+      locationDetails: parsed.data.job.location,
+      description: parsed.data.job.description,
+      sourceName: 'inline',
       sourceType: 'generic',
       sourceUrl: '',
       easyApply: false,
+      compensation: parsed.data.job.compensation,
+      compensationMin: undefined,
+      compensationMax: undefined,
+      compensationCurrency: undefined,
+      compensationPeriod: undefined,
       requirements: [],
-      ...parsed.data.job
+      responsibilities: [],
+      qualifications: [],
+      preferredQualifications: [],
+      benefits: [],
+      descriptionSections: [],
+      postedAt: undefined,
+      updatedAt: undefined,
+      workplaceType: undefined,
+      employmentType: undefined,
+      team: undefined,
+      seniority: undefined,
+      remote: true,
+      remoteStatus: 'remote'
     },
     parsed.data.profile
   );

@@ -1,5 +1,15 @@
 import { normalizeIngestedJob } from './jobNormalization';
-import { extractRequirements } from './shared';
+import {
+  extractCompensationFromText,
+  extractDescriptionSections,
+  extractRequirements,
+  htmlToStructuredText,
+  inferEmploymentType,
+  inferSeniority,
+  normalizeCompensation,
+  pickSectionItems,
+  summarizeBenefits
+} from './shared';
 import type { IngestedJob, JobSourceAdapter } from './types';
 
 export class AshbyAdapter implements JobSourceAdapter {
@@ -21,22 +31,44 @@ export class AshbyAdapter implements JobSourceAdapter {
 
     return (payload.jobs ?? [])
       .filter((job) => job.isListed !== false)
-      .map((job) =>
-        normalizeIngestedJob({
+      .map((job) => {
+        const description = htmlToStructuredText(String(job.descriptionPlain ?? job.descriptionHtml ?? ''));
+        const sections = extractDescriptionSections(description);
+        const compensation = normalizeCompensation(
+          typeof (job.compensation as { compensationTierSummary?: string } | undefined)?.compensationTierSummary === 'string'
+            ? { text: String((job.compensation as { compensationTierSummary?: string }).compensationTierSummary) }
+            : extractCompensationFromText(description)
+        );
+
+        return normalizeIngestedJob({
           externalId: String(job.id ?? job.jobUrl ?? job.applyUrl ?? job.title),
           title: String(job.title ?? 'Untitled role'),
           company: boardName,
           location: String(job.location ?? job.workplaceType ?? 'Unknown'),
-          description: String(job.descriptionPlain ?? job.descriptionHtml ?? ''),
+          locationDetails: Array.isArray(job.locationParts) ? job.locationParts.join(', ') : undefined,
+          description,
           sourceUrl: String(job.applyUrl ?? job.jobUrl ?? url),
           sourceType: this.sourceType,
           sourceName: this.sourceName,
           easyApply: true,
-          compensation: String((job.compensation as { compensationTierSummary?: string } | undefined)?.compensationTierSummary ?? '').trim() || undefined,
-          requirements: extractRequirements(String(job.descriptionPlain ?? job.descriptionHtml ?? '')),
+          compensation: compensation?.text,
+          compensationMin: compensation?.min,
+          compensationMax: compensation?.max,
+          compensationCurrency: compensation?.currency,
+          compensationPeriod: compensation?.period,
+          requirements: extractRequirements(description),
+          responsibilities: pickSectionItems(sections, 'responsibilities'),
+          qualifications: pickSectionItems(sections, 'qualifications'),
+          preferredQualifications: pickSectionItems(sections, 'preferredQualifications'),
+          benefits: summarizeBenefits(sections),
+          descriptionSections: sections,
           postedAt: typeof job.publishedAt === 'string' ? job.publishedAt : undefined,
-          workplaceType: String(job.workplaceType ?? '') || undefined
-        })
-      );
+          updatedAt: typeof job.updatedAt === 'string' ? job.updatedAt : undefined,
+          workplaceType: String(job.workplaceType ?? '') || undefined,
+          employmentType: inferEmploymentType(String(job.employmentType ?? ''), description),
+          team: String(job.departmentName ?? '') || undefined,
+          seniority: inferSeniority(String(job.title ?? ''), String(job.seniority ?? ''), description)
+        });
+      });
   }
 }

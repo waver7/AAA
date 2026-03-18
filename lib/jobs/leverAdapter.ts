@@ -1,5 +1,15 @@
 import { normalizeIngestedJob } from './jobNormalization';
-import { extractRequirements } from './shared';
+import {
+  extractCompensationFromText,
+  extractDescriptionSections,
+  extractRequirements,
+  htmlToStructuredText,
+  inferEmploymentType,
+  inferSeniority,
+  normalizeCompensation,
+  pickSectionItems,
+  summarizeBenefits
+} from './shared';
 import type { IngestedJob, JobSourceAdapter } from './types';
 
 export class LeverAdapter implements JobSourceAdapter {
@@ -20,23 +30,43 @@ export class LeverAdapter implements JobSourceAdapter {
     const postings = (await response.json()) as Array<Record<string, unknown>>;
 
     return postings.map((job) => {
-      const description = String(job.descriptionPlain ?? job.description ?? '');
-      const categories = job.categories as { commitment?: string; team?: string; location?: string; workplaceType?: string } | undefined;
-      const salaryRange = categories?.team;
+      const description = htmlToStructuredText(String(job.descriptionPlain ?? job.description ?? ''));
+      const categories = job.categories as { commitment?: string; team?: string; location?: string; workplaceType?: string; allLocations?: string[] } | undefined;
+      const sections = extractDescriptionSections(description);
+      const salaryRange = normalizeCompensation(
+        typeof (job as { salaryRange?: string }).salaryRange === 'string'
+          ? { text: (job as { salaryRange?: string }).salaryRange }
+          : extractCompensationFromText(description)
+      );
+
       return normalizeIngestedJob({
         externalId: String(job.id),
         title: String(job.text ?? 'Untitled role'),
         company,
         location: String(categories?.location ?? 'Unknown'),
+        locationDetails: categories?.allLocations?.join(', '),
         description,
         sourceUrl: String(job.applyUrl ?? job.hostedUrl ?? url),
         sourceType: this.sourceType,
         sourceName: this.sourceName,
         easyApply: true,
         requirements: extractRequirements(description),
-        compensation: typeof salaryRange === 'string' && salaryRange.includes('$') ? salaryRange : undefined,
+        responsibilities: pickSectionItems(sections, 'responsibilities'),
+        qualifications: pickSectionItems(sections, 'qualifications'),
+        preferredQualifications: pickSectionItems(sections, 'preferredQualifications'),
+        benefits: summarizeBenefits(sections),
+        descriptionSections: sections,
+        compensation: salaryRange?.text,
+        compensationMin: salaryRange?.min,
+        compensationMax: salaryRange?.max,
+        compensationCurrency: salaryRange?.currency,
+        compensationPeriod: salaryRange?.period,
         postedAt: typeof job.createdAt === 'number' ? new Date(job.createdAt).toISOString() : undefined,
-        workplaceType: categories?.workplaceType
+        updatedAt: typeof job.updatedAt === 'number' ? new Date(job.updatedAt).toISOString() : undefined,
+        workplaceType: categories?.workplaceType,
+        employmentType: inferEmploymentType(categories?.commitment, description),
+        team: categories?.team,
+        seniority: inferSeniority(String(job.text ?? ''), description)
       });
     });
   }

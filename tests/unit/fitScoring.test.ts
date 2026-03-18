@@ -15,6 +15,11 @@ describe('scoreJobFit', () => {
         sourceName: 'Ashby',
         easyApply: false,
         requirements: [],
+        responsibilities: [],
+        qualifications: [],
+        preferredQualifications: [],
+        benefits: [],
+        descriptionSections: [],
         compensation: '$180,000',
         remote: true,
         remoteStatus: 'remote'
