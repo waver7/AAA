@@ -43,7 +43,11 @@ const commonSkills = [
   'python',
   'java',
   'go',
-  'terraform'
+  'terraform',
+  'salesforce',
+  'apex',
+  'lightning web components',
+  'lwc'
 ];
 
 const sectionAliases: Record<string, string[]> = {
@@ -69,7 +73,7 @@ export function parseResumeText(rawText: string): ParsedResume {
   const sections = splitSections(lines);
   const links = extractLinks(fullText);
   const email = fullText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
-  const phone = fullText.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim();
+  const phone = fullText.match(/(?:\+?\d?[\s(.-]*\d{3}[)\s.-]*\d{3}[\s.-]*\d{4})/)?.[0]?.trim();
   const location = extractLocation(lines);
   const name = extractName(lines, email);
   const summary = extractSummary(sections, lines);
@@ -105,7 +109,13 @@ export function parseResumeText(rawText: string): ParsedResume {
 }
 
 function normalizeText(text: string) {
-  return text.replace(/\r/g, '').replace(/\t/g, ' ').replace(/[ ]{2,}/g, ' ').trim();
+  const collapsedLetters = text.replace(/(?:\b[A-Za-z]\s+){2,}[A-Za-z]\b/g, (match) => match.replace(/\s+/g, ''));
+  return collapsedLetters
+    .replace(/\r/g, '')
+    .replace(/\t/g, ' ')
+    .replace(/[ ]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function splitSections(lines: string[]) {
@@ -120,7 +130,7 @@ function splitSections(lines: string[]) {
   let current: keyof typeof sections = 'summary';
 
   for (const line of lines) {
-    const lower = line.toLowerCase();
+    const lower = line.toLowerCase().replace(/:$/, '');
     const next = Object.entries(sectionAliases).find(([, aliases]) => aliases.includes(lower));
     if (next) {
       current = next[0] as keyof typeof sections;
@@ -135,20 +145,26 @@ function splitSections(lines: string[]) {
 function extractName(lines: string[], email?: string) {
   for (const line of lines.slice(0, 5)) {
     if (email && line.includes(email)) continue;
+    if (/location:|phone:|email:|linkedin:/i.test(line)) continue;
     if (/^[A-Z][a-z]+(?: [A-Z][a-z]+){1,3}$/.test(line)) return line;
   }
-  return lines[0]?.length && lines[0].length < 60 ? lines[0] : undefined;
+  return lines.find((line) => /^[A-Z][A-Za-z.-]+(?: [A-Z][A-Za-z.-]+){1,3}$/.test(line));
 }
 
 function extractLocation(lines: string[]) {
-  const candidate = lines.slice(0, 8).find((line) => /,\s*[A-Z]{2}\b|remote|new york|san francisco|london|berlin/i.test(line));
-  return candidate;
+  const labeled = lines.find((line) => /^location:/i.test(line));
+  if (labeled) return labeled.replace(/^location:\s*/i, '').trim();
+  return lines.slice(0, 8).find((line) => /,\s*[A-Z]{2}\b|remote|new york|san francisco|london|berlin|ohio|washington/i.test(line));
 }
 
 function extractSummary(sections: Record<string, string[]>, lines: string[]) {
   const explicit = sections.summary.join(' ').trim();
   if (explicit.length > 40) return explicit.slice(0, 400);
-  const firstParagraph = lines.slice(1, 5).join(' ').trim();
+  const firstParagraph = lines
+    .filter((line) => !/^location:|^phone:|^email:|^linkedin:/i.test(line))
+    .slice(1, 6)
+    .join(' ')
+    .trim();
   return firstParagraph.length > 40 ? firstParagraph.slice(0, 400) : undefined;
 }
 
@@ -159,13 +175,11 @@ function extractLinks(text: string) {
 function extractSkills(text: string, skillLines: string[]) {
   const normalized = text.toLowerCase();
   const lineText = skillLines.join(' ').toLowerCase();
-  return commonSkills
-    .filter((skill) => normalized.includes(skill) || lineText.includes(skill))
-    .map((skill) => skill.replace('node.js', 'Node.js').replace('next.js', 'Next.js'));
+  return commonSkills.filter((skill) => normalized.includes(skill) || lineText.includes(skill));
 }
 
 function extractExperience(lines: string[]) {
-  return extractStructuredItems(lines).slice(0, 8);
+  return extractStructuredItems(lines).filter((item) => !looksLikeLocationOnly(item.title)).slice(0, 8);
 }
 
 function extractEducation(lines: string[]) {
@@ -220,8 +234,12 @@ function buildItemFromHeading(line: string): ResumeSectionItem {
 
 function extractCertifications(lines: string[], text: string) {
   const explicit = lines.filter((line) => line.length > 3);
-  const inferred = Array.from(text.matchAll(/\b(AWS Certified[^\n,]*|CKA|CKAD|PMP|Scrum Master)\b/gi)).map((match) => match[0]);
+  const inferred = Array.from(text.matchAll(/\b(AWS Certified[^\n,]*|CKA|CKAD|PMP|Scrum Master|Salesforce Certified[^\n,]*)\b/gi)).map((match) => match[0]);
   return unique([...explicit, ...inferred]).slice(0, 10);
+}
+
+function looksLikeLocationOnly(value: string) {
+  return /^(remote|[A-Za-z .'-]+,\s*[A-Z]{2})$/i.test(value.trim());
 }
 
 function unique(values: string[]) {

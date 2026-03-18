@@ -245,6 +245,15 @@ Set `DEMO_MODE="true"` (default) for mock AI outputs, or set `OPENAI_API_KEY` fo
 ### Database errors on seed/demo
 Ensure PostgreSQL is running (`docker compose up -d`) and `DATABASE_URL` points to it.
 
+### Prisma `Unknown argument phone/location/...` runtime error
+This usually means your generated Prisma Client is older than the current `prisma/schema.prisma`.
+Refresh Prisma locally with:
+```bash
+npm run prisma:generate
+npm run db:push
+```
+Then restart the dev server. The repo now auto-runs `prisma generate` during `npm install`, `npm run dev`, `npm run build`, `npm run seed`, and `npm run db:push`, but this note is useful if your local environment was already running with an older generated client.
+
 ---
 
 ## 📄 License

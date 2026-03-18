@@ -16,7 +16,12 @@
     "db:migrate": "prisma migrate dev",
     "seed": "tsx prisma/seed.ts",
     "demo": "npm run prisma:generate && npm run db:push && npm run seed",
-    "check": "npm run lint && npm run test"
+    "check": "npm run lint && npm run test",
+    "postinstall": "prisma generate",
+    "predev": "npm run prisma:generate",
+    "prebuild": "npm run prisma:generate",
+    "preseed": "npm run prisma:generate",
+    "predb:push": "npm run prisma:generate"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",

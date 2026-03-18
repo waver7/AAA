@@ -25,6 +25,25 @@ B.S. Computer Science | State University | 2018
 Certifications
 AWS Certified Developer`;
 
+const spacedResume = `Khakan Ispakhev
+S e n i o r S a l e s f o r c e D e v e l o p e r
+Location: Miamisburg, Ohio, United States
+Phone: (937) 825-8645
+Email: waverstar7@gmail.com
+LinkedIn: https://www.linkedin.com/in/khakan-ispakhev/
+Trailhead: https://www.salesforce.com/trailblazer/khakanispakhev
+
+Professional Summary
+Results-driven Senior Salesforce Developer with 10 years of experience.
+
+Skills
+Salesforce, Apex, LWC, JavaScript
+
+Experience
+Senior Salesforce Developer at Acme Health February 2024 - Current
+• Built scalable Lightning Web Components
+`;
+
 describe('resume parser', () => {
   it('extracts structured profile data from resume text', () => {
     const parsed = parseResumeText(sampleResume);
@@ -38,5 +57,16 @@ describe('resume parser', () => {
     expect(parsed.workHistory.length).toBeGreaterThan(0);
     expect(parsed.education.length).toBeGreaterThan(0);
     expect(parsed.certifications.join(' ')).toContain('AWS');
+  });
+
+  it('normalizes spaced OCR-like text into useful structured values', () => {
+    const parsed = parseResumeText(spacedResume);
+
+    expect(parsed.summary).toContain('Senior Salesforce Developer');
+    expect(parsed.location).toContain('Miamisburg');
+    expect(parsed.phone).toContain('937');
+    expect(parsed.skills).toContain('salesforce');
+    expect(parsed.portfolioUrl).toContain('trailblazer');
+    expect(parsed.workHistory[0]?.title).toContain('Senior Salesforce Developer');
   });
 });
