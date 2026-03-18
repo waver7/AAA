@@ -1,5 +1,6 @@
 import './globals.css';
 import Link from 'next/link';
+import type { Route } from 'next';
 import type { ReactNode } from 'react';
 import { assertProductionEnv } from '@/lib/validation/env';
 
@@ -8,7 +9,7 @@ export const metadata = {
   description: 'AI-powered job application assistant for software engineers'
 };
 
-const nav = [
+const nav: Array<{ href: Route; label: string }> = [
   { href: '/onboarding', label: 'Onboarding' },
   { href: '/jobs', label: 'Jobs' },
   { href: '/applications', label: 'Applications' },

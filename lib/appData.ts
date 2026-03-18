@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
+import { getRecommendedBoards } from '@/lib/jobs/recommendedBoards';
+import { getCurrentProfile } from '@/lib/profile/profileService';
 import { getCurrentUser } from '@/lib/user/currentUser';
 
 export async function getDashboardJobs() {
@@ -32,6 +34,12 @@ export async function getDashboardJobs() {
       mismatchNotes: meta.mismatchNotes ?? []
     };
   });
+}
+
+
+export async function getRecommendedJobBoards() {
+  const { profile } = await getCurrentProfile();
+  return getRecommendedBoards(profile);
 }
 
 export async function getJobDetail(jobId: string) {
