@@ -5,11 +5,13 @@ export type BrowserPreparationPacket = {
   targetUrl: string;
   contactFields: Array<{ label: string; value: string }>;
   profileFields: Array<{ label: string; value: string }>;
+  applicantDetailsText: string;
   checklist: string[];
   warnings: string[];
   notes: string;
   prefillSupport: 'best_effort' | 'copy_assist';
   prefillSummary: string;
+  visibleBrowserPrefill: boolean;
   resume: {
     ready: boolean;
     filename?: string;
@@ -67,6 +69,7 @@ export function buildBrowserPreparationPacket(input: {
       ['summary', summary]
     ]).map((entry) => [entry.label.toLowerCase().replace(/\s+/g, '_'), entry.value])
   );
+  const applicantDetailsText = [...contactFields, ...profileFields].map((entry) => `${entry.label}: ${entry.value}`).join('\n');
 
   const resumeReady = Boolean(input.resume?.uploadedFile?.storagePath);
   const warnings = [
@@ -79,15 +82,15 @@ export function buildBrowserPreparationPacket(input: {
 
   const checklist = [
     `Review the ${input.job.company} posting in the new tab before you fill anything out.`,
-    'Use the prepared profile details below to complete or verify required fields in your own browser session.',
+    'Use the copied applicant details to paste common fields into the external application form.',
     resumeReady ? 'Verify the selected resume/CV is the correct version before you submit.' : 'Upload your saved resume/CV manually before submitting.',
     'Confirm all answers, then submit manually yourself. AutoApply AI does not submit for you.'
   ];
 
   const prefillSummary =
     prefillSupport === 'best_effort'
-      ? 'Best-effort prefilling is available for common fields. You still need to review the external form before submitting.'
-      : 'This source falls back to copy-assist mode. We will open the application and prepare your details for manual paste.';
+      ? 'We can prepare your details and may run server-side automation for supported sites, but your own browser tab still needs manual paste/review because third-party forms cannot be directly controlled from this web app.'
+      : 'This source uses copy-assist mode. We will open the application and copy your saved details so you can paste them into the external form.';
 
   const notes = [
     `Prepared browser handoff for ${input.job.title} at ${input.job.company}.`,
@@ -103,11 +106,13 @@ export function buildBrowserPreparationPacket(input: {
     targetUrl: input.job.sourceUrl,
     contactFields,
     profileFields,
+    applicantDetailsText,
     checklist,
     warnings,
     notes,
     prefillSupport,
     prefillSummary,
+    visibleBrowserPrefill: false,
     resume: {
       ready: resumeReady,
       filename: input.resume?.uploadedFile?.filename ?? undefined,

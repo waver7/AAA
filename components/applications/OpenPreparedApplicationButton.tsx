@@ -17,9 +17,11 @@ export function OpenPreparedApplicationButton({ applicationId, resumeReady, pref
     warnings: string[];
     contactFields: Array<{ label: string; value: string }>;
     profileFields: Array<{ label: string; value: string }>;
+    applicantDetailsText: string;
     resume: { ready: boolean; filename?: string; note: string; automationUploadReady: boolean };
     prefillSummary: string;
     prefillSupport: 'best_effort' | 'copy_assist';
+    visibleBrowserPrefill: boolean;
   } | null>(null);
   const [automationSteps, setAutomationSteps] = useState<string[]>([]);
 
@@ -45,6 +47,9 @@ export function OpenPreparedApplicationButton({ applicationId, resumeReady, pref
 
       setPrepDetails(payload.browserPrep);
       setAutomationSteps(payload.automationResult?.steps ?? []);
+      if (payload.browserPrep.applicantDetailsText && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(payload.browserPrep.applicantDetailsText);
+      }
 
       if (prepWindow) {
         prepWindow.location.href = payload.browserPrep.targetUrl;
@@ -53,11 +58,11 @@ export function OpenPreparedApplicationButton({ applicationId, resumeReady, pref
       }
 
       const automationNote = payload.automationResult
-        ? ' Best-effort automation also ran in a separate prep session for supported fields.'
+        ? ' A separate server-side automation preview also ran for supported fields.'
         : payload.automationError
           ? ` Automation fallback: ${payload.automationError}`
           : '';
-      setMessage(`Opened the application in a new tab. ${payload.browserPrep.prefillSummary}${automationNote}`);
+      setMessage(`Opened the application in a new tab and copied your saved applicant details for paste. ${payload.browserPrep.prefillSummary}${automationNote}`);
     } catch (error) {
       prepWindow?.close();
       setBusy(false);
@@ -86,6 +91,11 @@ export function OpenPreparedApplicationButton({ applicationId, resumeReady, pref
             </a>
           </div>
           <p className="mt-1 text-slate-400">{prepDetails.prefillSummary}</p>
+          {!prepDetails.visibleBrowserPrefill ? (
+            <p className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-amber-100">
+              For security reasons, AutoApply AI cannot directly type into third-party job sites in your live browser tab. Use the copied details below to paste quickly, and treat any automation result as a separate preview.
+            </p>
+          ) : null}
           <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-300">
             <span className="rounded-full border border-slate-700 px-2 py-1">Prefill: {prepDetails.prefillSupport === 'best_effort' ? 'Best effort' : 'Copy assist'}</span>
             <span className="rounded-full border border-slate-700 px-2 py-1">Resume: {prepDetails.resume.ready ? prepDetails.resume.filename ?? 'Ready' : 'Missing'}</span>

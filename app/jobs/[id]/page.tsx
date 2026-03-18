@@ -90,7 +90,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold">Application workspace</h3>
-            <p className="text-sm text-slate-300">Create a prepared pipeline entry, open the original application in a new tab, and use the generated packet to complete the form yourself with best-effort prefilling guidance.</p>
+            <p className="text-sm text-slate-300">Create a prepared pipeline entry, open the original application in a new tab, and use copied applicant details plus the generated packet to complete the external form faster.</p>
           </div>
           <PrepareApplicationButton jobPostingId={job.id} existing={Boolean(job.application)} />
         </div>

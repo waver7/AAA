@@ -7,10 +7,12 @@ type BrowserPreparationPacket = {
   targetUrl: string;
   contactFields: Array<{ label: string; value: string }>;
   profileFields: Array<{ label: string; value: string }>;
+  applicantDetailsText: string;
   checklist: string[];
   warnings: string[];
   prefillSummary: string;
   prefillSupport: 'best_effort' | 'copy_assist';
+  visibleBrowserPrefill: boolean;
   resume: {
     ready: boolean;
     filename?: string;
@@ -24,15 +26,7 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [browserPrep, setBrowserPrep] = useState<BrowserPreparationPacket | null>(null);
-  const applicantCopy = useMemo(
-    () =>
-      browserPrep
-        ? [...browserPrep.contactFields, ...browserPrep.profileFields]
-            .map((entry) => `${entry.label}: ${entry.value}`)
-            .join('\n')
-        : '',
-    [browserPrep]
-  );
+  const applicantCopy = useMemo(() => browserPrep?.applicantDetailsText ?? '', [browserPrep]);
 
   async function handlePrepare() {
     setBusy(true);
@@ -55,7 +49,12 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
       }
 
       setBrowserPrep(payload.browserPrep);
-      setMessage('Application prepared. We opened the original posting in a new tab and assembled your browser-ready application packet below.');
+      if (payload.browserPrep.applicantDetailsText && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(payload.browserPrep.applicantDetailsText);
+        setMessage('Application prepared. We opened the posting and copied your saved applicant details so you can paste them into the external form.');
+      } else {
+        setMessage('Application prepared. We opened the posting and assembled your browser-ready application packet below.');
+      }
       if (prepWindow) {
         prepWindow.location.href = payload.browserPrep.targetUrl;
       } else {
@@ -101,6 +100,12 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
               Re-open posting
             </a>
           </div>
+
+          {!browserPrep.visibleBrowserPrefill ? (
+            <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+              We cannot directly type into third-party application pages inside your own browser tab from this web app. Your saved applicant details were prepared for quick paste instead.
+            </p>
+          ) : null}
 
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
             <span className="rounded-full border border-slate-700 px-2 py-1">Prefill: {browserPrep.prefillSupport === 'best_effort' ? 'Best effort' : 'Copy assist'}</span>

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildBrowserPreparationPacket } from '@/lib/applications/applicationPreparation';
 
 describe('buildBrowserPreparationPacket', () => {
-  it('builds a browser-ready packet with resume readiness and best-effort support metadata', () => {
+  it('builds a browser-ready packet with resume readiness and honest handoff metadata', () => {
     const packet = buildBrowserPreparationPacket({
       user: { name: 'Ada Lovelace', email: 'ada@example.com' },
       profile: {
@@ -35,8 +35,10 @@ describe('buildBrowserPreparationPacket', () => {
 
     expect(packet.targetUrl).toBe('https://example.com/jobs/backend');
     expect(packet.prefillSupport).toBe('best_effort');
+    expect(packet.visibleBrowserPrefill).toBe(false);
     expect(packet.resume.ready).toBe(true);
     expect(packet.resume.filename).toBe('ada-resume.pdf');
+    expect(packet.applicantDetailsText).toMatch(/Ada Lovelace/);
     expect(packet.contactFields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: 'Full name', value: 'Ada Lovelace' }),
@@ -46,5 +48,6 @@ describe('buildBrowserPreparationPacket', () => {
     expect(packet.profileFields).toEqual(expect.arrayContaining([expect.objectContaining({ label: 'Work authorization' })]));
     expect(packet.warnings.join(' ')).toMatch(/phone number/i);
     expect(packet.notes).toMatch(/Prepared browser handoff/i);
+    expect(packet.prefillSummary).toMatch(/cannot be directly controlled/i);
   });
 });

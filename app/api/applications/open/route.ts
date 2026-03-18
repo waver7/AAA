@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
         targetUrl: browserPrep.targetUrl,
         prefillSupport: browserPrep.prefillSupport,
         resumeReady: browserPrep.resume.ready,
+        visibleBrowserPrefill: browserPrep.visibleBrowserPrefill,
         automationRunId: run.id,
         automationError
       }
