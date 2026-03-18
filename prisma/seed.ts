@@ -1,15 +1,34 @@
 import { PrismaClient, ApplicationStatus, JobSourceType } from '@prisma/client';
+import { LOCAL_USER_EMAIL, LOCAL_USER_ID } from '@/lib/user/currentUser';
 
 const prisma = new PrismaClient();
+
+async function getOrCreateSeedUser() {
+  const byId = await prisma.user.findUnique({ where: { id: LOCAL_USER_ID } });
+  if (byId) {
+    return prisma.user.update({
+      where: { id: byId.id },
+      data: { email: LOCAL_USER_EMAIL, name: 'Demo User' }
+    });
+  }
+
+  const byEmail = await prisma.user.findUnique({ where: { email: LOCAL_USER_EMAIL } });
+  if (byEmail) {
+    return prisma.user.update({
+      where: { id: byEmail.id },
+      data: { name: 'Demo User' }
+    });
+  }
+
+  return prisma.user.create({
+    data: { id: LOCAL_USER_ID, email: LOCAL_USER_EMAIL, name: 'Demo User' }
+  });
+}
 
 async function main() {
   console.log('🌱 Seeding AutoApply AI demo data...');
 
-  const user = await prisma.user.upsert({
-    where: { id: 'local-user' },
-    update: { name: 'Demo User', email: 'demo@autoapply.ai' },
-    create: { id: 'local-user', email: 'demo@autoapply.ai', name: 'Demo User' }
-  });
+  const user = await getOrCreateSeedUser();
 
   await prisma.userProfile.upsert({
     where: { userId: user.id },

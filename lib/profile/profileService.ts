@@ -4,6 +4,16 @@ import { prisma } from '@/lib/db/prisma';
 import { getCurrentUser } from '@/lib/user/currentUser';
 import type { ParsedResume } from '@/lib/parsing/resumeParser';
 
+async function resolveSafeEmailUpdate(userId: string, requestedEmail?: string, fallbackEmail?: string) {
+  if (!requestedEmail) return fallbackEmail;
+
+  const existing = await prisma.user.findUnique({ where: { email: requestedEmail } });
+  if (!existing || existing.id === userId) return requestedEmail;
+
+  return fallbackEmail;
+}
+
+
 export async function saveParsedResume(file: File, parsed: ParsedResume) {
   const user = await getCurrentUser();
   const uploadDir = path.join(process.cwd(), 'uploads', user.id);
@@ -61,7 +71,7 @@ export async function saveParsedResume(file: File, parsed: ParsedResume) {
     where: { id: user.id },
     data: {
       name: parsed.name ?? user.name,
-      email: parsed.email ?? user.email
+      email: await resolveSafeEmailUpdate(user.id, parsed.email, user.email)
     }
   });
 
@@ -104,7 +114,7 @@ export async function saveManualProfile(input: {
     where: { id: user.id },
     data: {
       name: input.name || user.name,
-      email: input.email || user.email
+      email: await resolveSafeEmailUpdate(user.id, input.email, user.email)
     }
   });
 
