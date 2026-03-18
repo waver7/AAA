@@ -45,6 +45,8 @@ export function buildBrowserPreparationPacket(input: {
   const prefillSupport = input.job.easyApply || ['lever', 'ashby', 'workable', 'greenhouse'].some((label) => sourceName.includes(label)) ? 'best_effort' : 'copy_assist';
   const { firstName, lastName } = splitName(resolvedName);
   const locationBits = splitLocation(resolvedLocation);
+  const inferredCountry = inferCountry(resolvedLocation, input.profile?.visaInfo);
+  const sponsorshipAnswer = inferSponsorshipAnswer(input.profile?.visaInfo);
   const latestExperience = getFirstSectionRecord(input.resume?.workHistory);
   const latestEducation = getFirstSectionRecord(input.resume?.education);
   const linkedinUrl = input.profile?.linkedinUrl || input.resume?.links?.find((link) => link.includes('linkedin.com'));
@@ -75,6 +77,7 @@ export function buildBrowserPreparationPacket(input: {
       ['full_name', resolvedName],
       ['legal_name', resolvedName],
       ['first_name', firstName],
+      ['preferred_first_name', firstName],
       ['last_name', lastName],
       ['email', resolvedEmail],
       ['phone', resolvedPhone],
@@ -82,7 +85,7 @@ export function buildBrowserPreparationPacket(input: {
       ['city', locationBits.city],
       ['state', locationBits.state],
       ['region', locationBits.state],
-      ['country', locationBits.country],
+      ['country', inferredCountry || locationBits.country],
       ['linkedin', linkedinUrl],
       ['linkedin_url', linkedinUrl],
       ['github', githubUrl],
@@ -91,6 +94,9 @@ export function buildBrowserPreparationPacket(input: {
       ['portfolio_url', portfolioUrl],
       ['authorization', input.profile?.visaInfo],
       ['work_authorization', input.profile?.visaInfo],
+      ['requires_sponsorship', sponsorshipAnswer],
+      ['requires_visa_sponsorship', sponsorshipAnswer],
+      ['immigration_sponsorship', sponsorshipAnswer],
       ['summary', summary]
     ])
       .concat(compactFields([
@@ -202,4 +208,20 @@ function getFirstSectionRecord(value: unknown) {
     title: typeof first?.title === 'string' ? first.title : '',
     subtitle: typeof first?.subtitle === 'string' ? first.subtitle : ''
   };
+}
+
+function inferCountry(location: string, visaInfo?: string | null) {
+  const normalized = `${location} ${visaInfo ?? ''}`.toLowerCase();
+  if (/\b(us|usa|united states|u\.s\.)\b/.test(normalized)) return 'United States';
+  if (/\bcanada\b/.test(normalized)) return 'Canada';
+  if (/\buk|united kingdom|england\b/.test(normalized)) return 'United Kingdom';
+  return '';
+}
+
+function inferSponsorshipAnswer(visaInfo?: string | null) {
+  if (!visaInfo) return '';
+  const normalized = visaInfo.toLowerCase();
+  if (/authorized to work|no sponsorship|citizen|permanent resident|green card/.test(normalized)) return 'No';
+  if (/require sponsorship|need sponsorship|visa required|h-1b/.test(normalized)) return 'Yes';
+  return '';
 }

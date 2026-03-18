@@ -3,6 +3,7 @@ const FIELD_SELECTORS = {
   full_name: ['input[name*="full_name"]', 'input[id*="full_name"]', 'input[name*="name"]'],
   legal_name: ['input[name*="legal"]', 'input[id*="legal"]'],
   first_name: ['input[name*="first"]', 'input[id*="first"]', 'input[autocomplete="given-name"]'],
+  preferred_first_name: ['input[name*="preferred"]', 'input[id*="preferred"]', 'input[name*="nickname"]', 'input[id*="nickname"]'],
   last_name: ['input[name*="last"]', 'input[id*="last"]', 'input[autocomplete="family-name"]'],
   email: ['input[type="email"]', 'input[name*="email"]', 'input[id*="email"]'],
   phone: ['input[type="tel"]', 'input[name*="phone"]', 'input[id*="phone"]'],
@@ -31,6 +32,7 @@ const FIELD_KEYWORDS = {
   full_name: ['full name', 'complete name', 'candidate name'],
   legal_name: ['legal name'],
   first_name: ['first name', 'given name', 'forename'],
+  preferred_first_name: ['preferred first name', 'preferred name', 'nickname'],
   last_name: ['last name', 'family name', 'surname'],
   email: ['email', 'email address'],
   phone: ['phone', 'phone number', 'mobile'],
@@ -46,6 +48,9 @@ const FIELD_KEYWORDS = {
   portfolio_url: ['portfolio', 'website', 'personal site'],
   authorization: ['authorization', 'authorized', 'work authorization', 'legally authorized'],
   work_authorization: ['authorization', 'authorized', 'work authorization', 'legally authorized'],
+  requires_sponsorship: ['require sponsorship', 'visa sponsorship', 'immigration sponsorship', 'will you require sponsorship', 'do you require sponsorship'],
+  requires_visa_sponsorship: ['require sponsorship', 'visa sponsorship', 'immigration sponsorship'],
+  immigration_sponsorship: ['immigration sponsorship', 'visa sponsorship', 'require sponsorship'],
   summary: ['summary', 'cover letter', 'why are you interested', 'about you', 'tell us about yourself'],
   current_company: ['current company', 'company', 'most recent company', 'employer'],
   current_title: ['current title', 'job title', 'most recent title', 'role title'],
@@ -76,12 +81,11 @@ window.addEventListener('message', (event) => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== 'AUTOAPPLY_RUN_AUTOFILL') return false;
-  const steps = runAutofill(message.payload.fields ?? {});
-  sendResponse({ ok: true, steps });
-  return false;
+  runAutofill(message.payload.fields ?? {}).then((steps) => sendResponse({ ok: true, steps }));
+  return true;
 });
 
-function runAutofill(fields) {
+async function runAutofill(fields) {
   const steps = [];
   const usedElements = new Set();
 
@@ -93,7 +97,12 @@ function runAutofill(fields) {
       return;
     }
 
-    fillElement(element, value);
+    const filled = await fillElement(element, value);
+    if (!filled) {
+      steps.push(`Could not fill ${field}`);
+      return;
+    }
+
     usedElements.add(element);
     steps.push(`Filled ${field}`);
   });
@@ -106,7 +115,9 @@ function findCandidateElement(field, usedElements) {
   const directMatch = directSelectors.map((selector) => document.querySelector(selector)).find((element) => element && !usedElements.has(element));
   if (directMatch) return directMatch;
 
-  const candidates = Array.from(document.querySelectorAll('input, textarea, select')).filter((element) => !usedElements.has(element) && isFillable(element));
+  const candidates = Array.from(document.querySelectorAll('input, textarea, select, [role="combobox"], button[aria-haspopup="listbox"]')).filter(
+    (element) => !usedElements.has(element) && isFillable(element)
+  );
   const keywords = FIELD_KEYWORDS[field] ?? field.split('_');
   let best = null;
 
@@ -127,6 +138,7 @@ function getElementMetadata(element) {
     element.getAttribute('aria-label'),
     element.getAttribute('autocomplete'),
     element.getAttribute('data-automation-id'),
+    element.getAttribute('role'),
     findLabelText(element)
   ].filter(Boolean);
 
@@ -153,15 +165,20 @@ function isFillable(element) {
   if (element instanceof HTMLInputElement) {
     return !['hidden', 'checkbox', 'radio', 'file', 'submit', 'button'].includes(element.type);
   }
-  return true;
+  if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) return true;
+  return element.getAttribute('role') === 'combobox' || element.getAttribute('aria-haspopup') === 'listbox';
 }
 
-function fillElement(element, value) {
+async function fillElement(element, value) {
   element.focus();
 
   if (element instanceof HTMLSelectElement) {
     const option = Array.from(element.options).find((candidate) => candidate.text.toLowerCase() === value.toLowerCase() || candidate.value.toLowerCase() === value.toLowerCase());
-    if (option) element.value = option.value;
+    if (!option) return false;
+    element.value = option.value;
+  } else if (element.getAttribute('role') === 'combobox' || element.getAttribute('aria-haspopup') === 'listbox') {
+    const selected = await selectComboboxOption(element, value);
+    if (!selected) return false;
   } else {
     const prototype = Object.getPrototypeOf(element);
     const nativeSetter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
@@ -172,4 +189,25 @@ function fillElement(element, value) {
   element.dispatchEvent(new Event('input', { bubbles: true }));
   element.dispatchEvent(new Event('change', { bubbles: true }));
   element.blur();
+  return true;
+}
+
+async function selectComboboxOption(element, value) {
+  element.click();
+  await wait(150);
+
+  const normalizedValue = value.toLowerCase();
+  const options = Array.from(document.querySelectorAll('[role="option"], li, button, div')).filter((candidate) => {
+    const text = candidate.textContent?.trim().toLowerCase();
+    return text && (text === normalizedValue || text.includes(normalizedValue));
+  });
+
+  const option = options[0];
+  if (!option) return false;
+  option.click();
+  return true;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
