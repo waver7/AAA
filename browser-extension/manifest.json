@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "AutoApply AI Autofill Helper",
+  "version": "0.1.0",
+  "description": "Optional extension that lets AutoApply AI visibly fill supported third-party job application tabs.",
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}
