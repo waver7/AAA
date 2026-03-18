@@ -16,18 +16,24 @@ export async function POST(request: NextRequest) {
   const [existing, fit, job, profileState] = await Promise.all([
     prisma.application.findFirst({ where: { userId: user.id, jobPostingId: parsed.data.jobPostingId } }),
     prisma.jobFitScore.findFirst({ where: { userId: user.id, jobPostingId: parsed.data.jobPostingId } }),
-    prisma.jobPosting.findUnique({ where: { id: parsed.data.jobPostingId } }),
+    prisma.jobPosting.findUnique({ where: { id: parsed.data.jobPostingId }, include: { source: true } }),
     getCurrentProfile()
   ]);
 
   if (!job) return NextResponse.json({ error: 'Job posting not found.' }, { status: 404 });
 
+  const uploadedFile = profileState.latestResume?.uploadedFileId
+    ? await prisma.uploadedFile.findUnique({ where: { id: profileState.latestResume.uploadedFileId } })
+    : null;
+
   const browserPrep = buildBrowserPreparationPacket({
     user,
     profile: profileState.profile,
-    resume: profileState.latestResume,
-    job: { title: job.title, company: job.company, sourceUrl: job.sourceUrl }
+    resume: profileState.latestResume ? { ...profileState.latestResume, uploadedFile } : null,
+    job: { title: job.title, company: job.company, sourceUrl: job.sourceUrl, easyApply: job.easyApply, sourceName: job.source?.name }
   });
+
+  const clientPacket = (({ automationFields: _automationFields, resumeStoragePath: _resumeStoragePath, ...packet }) => packet)(browserPrep);
 
   const application = existing
     ? await prisma.application.update({
@@ -44,5 +50,5 @@ export async function POST(request: NextRequest) {
         }
       });
 
-  return NextResponse.json({ application, browserPrep });
+  return NextResponse.json({ application, browserPrep: clientPacket });
 }

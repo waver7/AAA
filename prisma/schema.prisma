@@ -113,7 +113,10 @@ model JobPosting {
   sourceUrl     String
   sourceType    JobSourceType
   easyApply     Boolean     @default(false)
+  remote        Boolean     @default(false)
+  workplaceType String?
   requirements  String[]
+  postedAt      DateTime?
   discoveredAt  DateTime    @default(now())
   source        JobSource?  @relation(fields: [sourceId], references: [id])
   fitScores     JobFitScore[]

@@ -12,9 +12,12 @@ describe('scoreJobFit', () => {
         description: 'TypeScript Node PostgreSQL',
         sourceUrl: '',
         sourceType: 'generic',
+        sourceName: 'Ashby',
         easyApply: false,
         requirements: [],
-        compensation: '$180,000'
+        compensation: '$180,000',
+        remote: true,
+        remoteStatus: 'remote'
       },
       { requiredSkills: ['TypeScript', 'Node'], preferredLocations: ['Remote'], salaryTarget: 170000 }
     );

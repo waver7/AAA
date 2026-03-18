@@ -1,7 +1,10 @@
-import { IngestedJob, JobSourceAdapter } from './types';
+import { normalizeIngestedJob } from './jobNormalization';
+import { extractRequirements } from './shared';
+import type { IngestedJob, JobSourceAdapter } from './types';
 
 export class LeverAdapter implements JobSourceAdapter {
   sourceType = 'lever' as const;
+  sourceName = 'Lever';
 
   canHandle(url: string): boolean {
     return url.includes('jobs.lever.co');
@@ -12,31 +15,29 @@ export class LeverAdapter implements JobSourceAdapter {
     if (!company) return [];
 
     const apiUrl = `https://api.lever.co/v0/postings/${company}?mode=json`;
-    const response = await fetch(apiUrl, { next: { revalidate: 0 } });
+    const response = await fetch(apiUrl);
     if (!response.ok) throw new Error(`Lever request failed with status ${response.status}.`);
     const postings = (await response.json()) as Array<Record<string, unknown>>;
 
     return postings.map((job) => {
       const description = String(job.descriptionPlain ?? job.description ?? '');
-      const salaryRange = (job.categories as { commitment?: string; team?: string; location?: string; allLocations?: string[] } | undefined)?.team;
-      return {
+      const categories = job.categories as { commitment?: string; team?: string; location?: string; workplaceType?: string } | undefined;
+      const salaryRange = categories?.team;
+      return normalizeIngestedJob({
         externalId: String(job.id),
         title: String(job.text ?? 'Untitled role'),
         company,
-        location: String((job.categories as { location?: string } | undefined)?.location ?? 'Unknown'),
+        location: String(categories?.location ?? 'Unknown'),
         description,
-        sourceUrl: String(job.hostedUrl ?? url),
-        sourceType: 'lever',
+        sourceUrl: String(job.applyUrl ?? job.hostedUrl ?? url),
+        sourceType: this.sourceType,
+        sourceName: this.sourceName,
         easyApply: true,
         requirements: extractRequirements(description),
-        compensation: typeof salaryRange === 'string' && salaryRange.includes('$') ? salaryRange : undefined
-      } as IngestedJob;
+        compensation: typeof salaryRange === 'string' && salaryRange.includes('$') ? salaryRange : undefined,
+        postedAt: typeof job.createdAt === 'number' ? new Date(job.createdAt).toISOString() : undefined,
+        workplaceType: categories?.workplaceType
+      });
     });
   }
-}
-
-function extractRequirements(text: string) {
-  return Array.from(text.matchAll(/\b(TypeScript|JavaScript|Node(?:\.js)?|React|Next\.js|PostgreSQL|Redis|AWS|Docker|Kubernetes|GraphQL|Terraform)\b/gi)).map(
-    (match) => match[0]
-  );
 }

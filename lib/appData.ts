@@ -1,21 +1,25 @@
+import { env } from '@/lib/validation/env';
 import { prisma } from '@/lib/db/prisma';
+import { formatRelativeDate } from '@/lib/jobs/shared';
 import { getRecommendedBoards } from '@/lib/jobs/recommendedBoards';
+import { inferRemoteStatus } from '@/lib/jobs/remoteDetection';
 import { getCurrentProfile } from '@/lib/profile/profileService';
 import { getCurrentUser } from '@/lib/user/currentUser';
 
 export async function getDashboardJobs() {
   const user = await getCurrentUser();
   const postings = await prisma.jobPosting.findMany({
-    orderBy: { discoveredAt: 'desc' },
+    orderBy: [{ postedAt: 'desc' }, { discoveredAt: 'desc' }],
     include: {
       fitScores: { where: { userId: user.id }, take: 1 },
       source: true
     }
   });
 
-  return postings.filter((job) => !job.externalId.startsWith('demo-job')).map((job) => {
+  const normalized = postings.filter((job) => !job.externalId.startsWith('demo-job')).map((job) => {
     const fit = job.fitScores[0];
     const meta = safeParseExplanation(fit?.explanation);
+    const remote = job.remote || inferRemoteStatus({ location: job.location, description: job.description, workplaceType: job.workplaceType, title: job.title }).isRemote;
     return {
       id: job.id,
       title: job.title,
@@ -25,17 +29,31 @@ export async function getDashboardJobs() {
       description: job.description,
       sourceUrl: job.sourceUrl,
       sourceType: job.sourceType,
-      discoveredAt: job.discoveredAt.toISOString().slice(0, 10),
+      sourceName: job.source?.name ?? job.sourceType,
+      discoveredAt: formatRelativeDate(job.discoveredAt),
+      postedAt: formatRelativeDate(job.postedAt) ?? formatRelativeDate(job.discoveredAt),
       score: fit?.score ?? 0,
       matchingSkills: fit?.matchingSkills ?? [],
       missingSkills: fit?.missingSkills ?? [],
       concerns: fit?.concerns ?? [],
       pitch: meta.pitch ?? 'Ingest this job after finishing onboarding to generate a fit explanation.',
-      mismatchNotes: meta.mismatchNotes ?? []
+      mismatchNotes: meta.mismatchNotes ?? [],
+      remote,
+      remoteStatus: remote ? 'Remote' : job.workplaceType ?? 'Unknown',
+      easyApply: job.easyApply
     };
   });
-}
 
+  const jobs = normalized.filter((job) => job.remote);
+
+  return {
+    jobs,
+    remoteOnly: true,
+    hiddenCount: normalized.length - jobs.length,
+    totalCount: normalized.length,
+    supportedSources: ['Greenhouse', 'Lever', 'Ashby', 'Workable']
+  };
+}
 
 export async function getRecommendedJobBoards() {
   const { profile } = await getCurrentProfile();
@@ -47,6 +65,7 @@ export async function getJobDetail(jobId: string) {
   const job = await prisma.jobPosting.findUnique({
     where: { id: jobId },
     include: {
+      source: true,
       fitScores: { where: { userId: user.id }, take: 1 },
       applications: { where: { userId: user.id }, take: 1 }
     }
@@ -57,6 +76,7 @@ export async function getJobDetail(jobId: string) {
   const meta = safeParseExplanation(fit?.explanation);
   return {
     ...job,
+    sourceName: job.source?.name ?? job.sourceType,
     score: fit?.score ?? 0,
     matchingSkills: fit?.matchingSkills ?? [],
     missingSkills: fit?.missingSkills ?? [],
@@ -69,13 +89,24 @@ export async function getJobDetail(jobId: string) {
 
 export async function getApplicationsBoard() {
   const user = await getCurrentUser();
-  return prisma.application.findMany({
+  const { profile, latestResume } = await getCurrentProfile();
+  const applications = await prisma.application.findMany({
     where: { userId: user.id },
     orderBy: { updatedAt: 'desc' },
     include: {
-      jobPosting: true
+      automationRuns: { orderBy: { createdAt: 'desc' }, take: 1 },
+      jobPosting: { include: { source: true } }
     }
   });
+
+  return {
+    applications,
+    prepReadiness: {
+      resumeReady: Boolean(latestResume?.uploadedFileId),
+      automationEnabled: env.ENABLE_AUTOMATION === 'true',
+      profileReady: Boolean(profile?.phone && profile?.location && user.email)
+    }
+  };
 }
 
 function safeParseExplanation(explanation?: string | null): { pitch?: string; mismatchNotes?: string[] } {

@@ -25,8 +25,9 @@ export default async function JobDetailPage({ params }: { params: { id: string }
           {job.company} • {job.location}
         </p>
         <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-          <span>Source: {job.sourceType}</span>
-          <span>Discovered: {job.discoveredAt.toISOString().slice(0, 10)}</span>
+          <span>Source: {job.sourceName}</span>
+          <span>Remote: {job.remote ? 'Yes' : 'No'}</span>
+          <span>Posted: {(job.postedAt ?? job.discoveredAt).toISOString().slice(0, 10)}</span>
           <a className="text-teal-400 hover:text-teal-300" href={job.sourceUrl} target="_blank" rel="noreferrer">
             Open original posting
           </a>
@@ -42,15 +43,15 @@ export default async function JobDetailPage({ params }: { params: { id: string }
         mismatchNotes={job.mismatchNotes}
         salary={job.compensation ?? undefined}
         location={job.location}
-        source={job.sourceType}
-        updatedAt={job.discoveredAt.toISOString().slice(0, 10)}
+        source={job.sourceName}
+        updatedAt={(job.postedAt ?? job.discoveredAt).toISOString().slice(0, 10)}
       />
 
       <div className="card space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold">Application workspace</h3>
-            <p className="text-sm text-slate-300">Create a prepared pipeline entry, open the original application in a new tab, and use the generated packet to complete the form yourself.</p>
+            <p className="text-sm text-slate-300">Create a prepared pipeline entry, open the original application in a new tab, and use the generated packet to complete the form yourself with best-effort prefilling guidance.</p>
           </div>
           <PrepareApplicationButton jobPostingId={job.id} existing={Boolean(job.application)} />
         </div>

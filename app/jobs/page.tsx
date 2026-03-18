@@ -3,13 +3,17 @@ import { JobIngestionPanel } from '@/components/JobIngestionPanel';
 import { getDashboardJobs, getRecommendedJobBoards } from '@/lib/appData';
 
 export default async function JobsPage() {
-  const [jobs, recommendedBoards] = await Promise.all([getDashboardJobs(), getRecommendedJobBoards()]);
+  const [dashboard, recommendedBoards] = await Promise.all([getDashboardJobs(), getRecommendedJobBoards()]);
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold">Jobs dashboard</h2>
-        <p className="text-slate-300">Ingest real roles from supported boards, review fit, and push promising jobs into your application pipeline.</p>
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-2xl font-semibold">Remote jobs dashboard</h2>
+          <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[11px] uppercase tracking-wide text-emerald-200">Remote only by default</span>
+        </div>
+        <p className="text-slate-300">Discover remote roles across multiple supported job board providers, review fit, and push promising jobs into your application pipeline.</p>
+        <p className="text-xs text-slate-500">Supported sources today: {dashboard.supportedSources.join(', ')}.</p>
       </div>
 
       <JobIngestionPanel suggestedBoards={recommendedBoards.map((board) => ({ company: board.company, url: board.url, sourceType: board.sourceType }))} />
@@ -17,10 +21,10 @@ export default async function JobsPage() {
       <div className="card space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold">Jobs you might like</h3>
-            <p className="text-sm text-slate-300">We rank supported Greenhouse and Lever boards using your saved target roles, skills, and location preferences.</p>
+            <h3 className="text-lg font-semibold">Remote boards you might like</h3>
+            <p className="text-sm text-slate-300">We rank supported boards using your saved target roles, skills, and remote-location preferences.</p>
           </div>
-          <p className="text-xs text-slate-500">Ingest any board below to pull live postings into your dashboard.</p>
+          <p className="text-xs text-slate-500">Import any board below to fetch live remote postings into your dashboard.</p>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           {recommendedBoards.map((board) => (
@@ -52,26 +56,38 @@ export default async function JobsPage() {
         </div>
       </div>
 
-      {jobs.length === 0 ? (
+      {dashboard.jobs.length === 0 ? (
         <div className="card space-y-2 text-sm text-slate-300">
-          <p className="font-medium text-slate-100">No ingested jobs yet.</p>
-          <p>Add a Greenhouse or Lever board URL above to fetch live jobs into your dashboard.</p>
+          <p className="font-medium text-slate-100">No remote jobs imported yet.</p>
+          <p>Import a supported source above to fetch remote roles only. Hybrid and on-site jobs stay out of the default dashboard view.</p>
+          {dashboard.hiddenCount ? <p className="text-slate-400">We already hid {dashboard.hiddenCount} non-remote roles from previous imports.</p> : null}
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {jobs.map((job) => (
-            <JobCard
-              key={job.id}
-              id={job.id}
-              title={job.title}
-              company={job.company}
-              location={job.location}
-              score={job.score}
-              sourceType={job.sourceType}
-              discoveredAt={job.discoveredAt}
-              compensation={job.compensation ?? undefined}
-            />
-          ))}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-300">
+            <p>
+              Showing <span className="font-semibold text-slate-100">{dashboard.jobs.length}</span> remote roles.
+            </p>
+            <p>{dashboard.hiddenCount ? `${dashboard.hiddenCount} non-remote roles were filtered out.` : 'No hybrid or on-site roles are shown here.'}</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {dashboard.jobs.map((job) => (
+              <JobCard
+                key={job.id}
+                id={job.id}
+                title={job.title}
+                company={job.company}
+                location={job.location}
+                score={job.score}
+                sourceType={job.sourceType}
+                sourceName={job.sourceName}
+                discoveredAt={job.discoveredAt}
+                postedAt={job.postedAt}
+                remoteStatus={job.remoteStatus}
+                compensation={job.compensation ?? undefined}
+              />
+            ))}
+          </div>
         </div>
       )}
     </section>

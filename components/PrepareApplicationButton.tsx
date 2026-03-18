@@ -9,6 +9,14 @@ type BrowserPreparationPacket = {
   profileFields: Array<{ label: string; value: string }>;
   checklist: string[];
   warnings: string[];
+  prefillSummary: string;
+  prefillSupport: 'best_effort' | 'copy_assist';
+  resume: {
+    ready: boolean;
+    filename?: string;
+    note: string;
+    automationUploadReady: boolean;
+  };
 };
 
 export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostingId: string; existing: boolean }) {
@@ -29,7 +37,7 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
   async function handlePrepare() {
     setBusy(true);
     setMessage('');
-    const prepWindow = typeof window !== 'undefined' ? window.open('', '_blank', 'noopener,noreferrer') : null;
+    const prepWindow = typeof window !== 'undefined' ? window.open('', '_blank') : null;
 
     try {
       const response = await fetch('/api/applications/prepare', {
@@ -87,11 +95,17 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="font-semibold text-slate-100">External browser handoff</p>
-              <p className="mt-1 text-xs text-slate-400">Open and finish the application in your own browser session. AutoApply AI never submits on your behalf.</p>
+              <p className="mt-1 text-xs text-slate-400">{browserPrep.prefillSummary}</p>
             </div>
             <a href={browserPrep.targetUrl} target="_blank" rel="noreferrer" className="text-teal-400 hover:text-teal-300">
               Re-open posting
             </a>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
+            <span className="rounded-full border border-slate-700 px-2 py-1">Prefill: {browserPrep.prefillSupport === 'best_effort' ? 'Best effort' : 'Copy assist'}</span>
+            <span className="rounded-full border border-slate-700 px-2 py-1">Resume: {browserPrep.resume.ready ? browserPrep.resume.filename ?? 'Ready' : 'Missing'}</span>
+            <span className="rounded-full border border-slate-700 px-2 py-1">Automation upload: {browserPrep.resume.automationUploadReady ? 'Available' : 'Manual / unavailable'}</span>
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -101,7 +115,7 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <Checklist title="Before you submit" items={browserPrep.checklist} />
-            <Checklist title="Missing info to add later" items={browserPrep.warnings} emptyLabel="Your profile already covers the common application fields." />
+            <Checklist title="Missing info to add later" items={[browserPrep.resume.note, ...browserPrep.warnings]} emptyLabel="Your profile already covers the common application fields." />
           </div>
         </div>
       ) : null}
@@ -130,11 +144,12 @@ function FieldList({ title, items }: { title: string; items: Array<{ label: stri
 }
 
 function Checklist({ title, items, emptyLabel = 'Nothing to show.' }: { title: string; items: string[]; emptyLabel?: string }) {
+  const filtered = items.filter(Boolean);
   return (
     <div className="rounded-lg border border-slate-800 p-3">
       <p className="mb-2 font-medium text-slate-100">{title}</p>
       <ul className="list-disc space-y-2 pl-5 text-xs text-slate-300 sm:text-sm">
-        {items.length ? items.map((item) => <li key={item}>{item}</li>) : <li>{emptyLabel}</li>}
+        {filtered.length ? filtered.map((item) => <li key={item}>{item}</li>) : <li>{emptyLabel}</li>}
       </ul>
     </div>
   );

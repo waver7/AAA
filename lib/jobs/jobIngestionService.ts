@@ -1,20 +1,27 @@
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/user/currentUser';
 import { scoreJobFit } from '@/lib/scoring/fitScoring';
+import { getCurrentUser } from '@/lib/user/currentUser';
+import { AshbyAdapter } from './ashbyAdapter';
+import { partitionRemoteJobs } from './jobNormalization';
 import { GreenhouseAdapter } from './greenhouseAdapter';
 import { LeverAdapter } from './leverAdapter';
-import { IngestedJob, JobSourceAdapter } from './types';
+import { WorkableAdapter } from './workableAdapter';
+import type { IngestedJob, JobSourceAdapter } from './types';
 
-const adapters: JobSourceAdapter[] = [new GreenhouseAdapter(), new LeverAdapter()];
+const adapters: JobSourceAdapter[] = [new GreenhouseAdapter(), new LeverAdapter(), new AshbyAdapter(), new WorkableAdapter()];
 
 export function detectJobAdapter(url: string) {
   return adapters.find((candidate) => candidate.canHandle(url));
 }
 
+export function listSupportedSources() {
+  return adapters.map((adapter) => ({ sourceName: adapter.sourceName, sourceType: adapter.sourceType }));
+}
+
 export async function ingestJobsFromUrl(url: string): Promise<IngestedJob[]> {
   const adapter = detectJobAdapter(url);
   if (!adapter) {
-    throw new Error('Unsupported source URL. AutoApply AI currently supports Greenhouse and Lever job boards.');
+    throw new Error('Unsupported source URL. AutoApply AI currently supports Greenhouse, Lever, Ashby, and Workable public job boards.');
   }
   return adapter.fetchJobs(url);
 }
@@ -22,18 +29,19 @@ export async function ingestJobsFromUrl(url: string): Promise<IngestedJob[]> {
 export async function ingestAndPersistJobs(url: string) {
   const adapter = detectJobAdapter(url);
   if (!adapter) {
-    throw new Error('Unsupported source URL. Use a Greenhouse board URL or a Lever jobs URL.');
+    throw new Error('Unsupported source URL. Use a Greenhouse, Lever, Ashby, or Workable jobs URL.');
   }
 
-  const jobs = await adapter.fetchJobs(url);
+  const discoveredJobs = await adapter.fetchJobs(url);
+  const { remoteJobs, filteredOut } = partitionRemoteJobs(discoveredJobs);
   const user = await getCurrentUser();
   const profile = await prisma.userProfile.findUnique({ where: { userId: user.id } });
   const existingSource = await prisma.jobSource.findFirst({ where: { baseUrl: url, sourceType: adapter.sourceType } });
   const source = existingSource
-    ? await prisma.jobSource.update({ where: { id: existingSource.id }, data: { isEnabled: true } })
+    ? await prisma.jobSource.update({ where: { id: existingSource.id }, data: { isEnabled: true, name: adapter.sourceName } })
     : await prisma.jobSource.create({
         data: {
-          name: adapter.sourceType === 'greenhouse' ? 'Greenhouse board' : 'Lever board',
+          name: adapter.sourceName,
           sourceType: adapter.sourceType,
           baseUrl: url
         }
@@ -41,7 +49,7 @@ export async function ingestAndPersistJobs(url: string) {
 
   const persisted = [];
 
-  for (const job of jobs) {
+  for (const job of remoteJobs) {
     const posting = await prisma.jobPosting.upsert({
       where: {
         externalId_sourceType: {
@@ -59,7 +67,10 @@ export async function ingestAndPersistJobs(url: string) {
         sourceUrl: job.sourceUrl,
         requirements: job.requirements,
         easyApply: job.easyApply,
-        discoveredAt: new Date()
+        discoveredAt: new Date(),
+        postedAt: job.postedAt ? new Date(job.postedAt) : undefined,
+        remote: job.remote,
+        workplaceType: job.workplaceType ?? job.remoteStatus
       },
       create: {
         sourceId: source.id,
@@ -72,16 +83,19 @@ export async function ingestAndPersistJobs(url: string) {
         sourceUrl: job.sourceUrl,
         sourceType: job.sourceType,
         requirements: job.requirements,
-        easyApply: job.easyApply
+        easyApply: job.easyApply,
+        postedAt: job.postedAt ? new Date(job.postedAt) : undefined,
+        remote: job.remote,
+        workplaceType: job.workplaceType ?? job.remoteStatus
       }
     });
 
     if (profile) {
       const fit = scoreJobFit(job, {
         requiredSkills: profile.skills,
-        preferredLocations: profile.preferredLocations,
+        preferredLocations: ['Remote', ...(profile.preferredLocations ?? [])],
         salaryTarget: profile.salaryTarget ?? undefined,
-        remotePreference: profile.workMode ?? undefined
+        remotePreference: profile.workMode ?? 'remote'
       });
 
       await prisma.jobFitScore.upsert({
@@ -115,5 +129,12 @@ export async function ingestAndPersistJobs(url: string) {
     persisted.push(posting);
   }
 
-  return { adapter: adapter.sourceType, count: persisted.length, jobs: persisted };
+  return {
+    adapter: adapter.sourceName,
+    sourceType: adapter.sourceType,
+    count: persisted.length,
+    filteredOut,
+    remoteOnly: true,
+    jobs: persisted
+  };
 }

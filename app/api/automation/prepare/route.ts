@@ -4,7 +4,8 @@ import { runAutofillPreparation } from '@/lib/automation/autofillPreparation';
 
 const schema = z.object({
   url: z.string().url(),
-  fields: z.record(z.string())
+  fields: z.record(z.string()),
+  resumePath: z.string().optional()
 });
 
 export async function POST(request: NextRequest) {
