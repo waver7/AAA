@@ -133,13 +133,46 @@ window.addEventListener('message', (event) => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== 'AUTOAPPLY_RUN_AUTOFILL') return false;
-  runAutofill(message.payload.fields ?? {}, message.payload.resumeFile ?? null).then((steps) => sendResponse({ ok: true, steps }));
+  runAutofill(message.payload.fields ?? {}, message.payload.resumeFile ?? null).then((result) => sendResponse({ ok: true, ...result }));
   return true;
 });
 
 async function runAutofill(fields, resumeFile) {
+  const firstPass = await fillFields(fields);
+  let combinedSteps = [...firstPass.steps];
+  let totalFilledCount = firstPass.filledCount;
+
+  if (totalFilledCount === 0) {
+    const openedApplication = await attemptOpenApplicationForm();
+    if (openedApplication) {
+      combinedSteps.push(openedApplication);
+      await wait(1200);
+      const secondPass = await fillFields(fields);
+      combinedSteps = combinedSteps.concat(secondPass.steps);
+      totalFilledCount += secondPass.filledCount;
+    }
+  }
+
+  let resumeAttached = false;
+  if (resumeFile?.dataBase64) {
+    const resumeResult = await attachResumeFile(resumeFile);
+    if (resumeResult.step) combinedSteps.push(resumeResult.step);
+    resumeAttached = resumeResult.attached;
+  } else {
+    const resumeHint = maybePromptResumeAttach();
+    if (resumeHint) combinedSteps.push(resumeHint);
+  }
+
+  return {
+    steps: combinedSteps,
+    completed: totalFilledCount > 0 || resumeAttached
+  };
+}
+
+async function fillFields(fields) {
   const steps = [];
   const usedElements = new Set();
+  let filledCount = 0;
 
   for (const [field, value] of Object.entries(fields)) {
     if (typeof value !== 'string' || !value.trim()) continue;
@@ -156,18 +189,20 @@ async function runAutofill(fields, resumeFile) {
     }
 
     usedElements.add(element);
+    filledCount += 1;
     steps.push(`Filled ${field}`);
   }
 
-  if (resumeFile?.dataBase64) {
-    const resumeStep = await attachResumeFile(resumeFile);
-    if (resumeStep) steps.push(resumeStep);
-  } else {
-    const resumeHint = maybePromptResumeAttach();
-    if (resumeHint) steps.push(resumeHint);
-  }
+  return { steps, filledCount };
+}
 
-  return steps;
+async function attemptOpenApplicationForm() {
+  const applyControl = findApplyControl();
+  if (!applyControl) return '';
+
+  applyControl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  applyControl.click();
+  return 'Clicked Apply to open the application form.';
 }
 
 function findCandidateElement(field, usedElements) {
@@ -290,7 +325,11 @@ function normalizeValue(value) {
 async function attachResumeFile(resumeFile) {
   const directInput = await waitForFileInput(400);
   if (directInput) {
-    return setResumeOnInput(directInput, resumeFile) ? `Attached resume file: ${resumeFile.filename}` : 'Could not attach resume file';
+    const attached = setResumeOnInput(directInput, resumeFile);
+    return {
+      attached,
+      step: attached ? `Attached resume file: ${resumeFile.filename}` : 'Could not attach resume file'
+    };
   }
 
   const attachControl = findAttachControl();
@@ -298,12 +337,22 @@ async function attachResumeFile(resumeFile) {
     attachControl.click();
     const revealedInput = await waitForFileInput(1800);
     if (revealedInput) {
-      return setResumeOnInput(revealedInput, resumeFile) ? `Attached resume file: ${resumeFile.filename}` : 'Could not attach resume file';
+      const attached = setResumeOnInput(revealedInput, resumeFile);
+      return {
+        attached,
+        step: attached ? `Attached resume file: ${resumeFile.filename}` : 'Could not attach resume file'
+      };
     }
-    return 'Clicked Attach/Upload, but no file input became available for resume attachment.';
+    return {
+      attached: false,
+      step: 'Clicked Attach/Upload, but no file input became available for resume attachment.'
+    };
   }
 
-  return 'No resume file input or attach control was available for automatic attachment.';
+  return {
+    attached: false,
+    step: 'No resume file input or attach control was available for automatic attachment.'
+  };
 }
 
 function setResumeOnInput(input, resumeFile) {
@@ -336,6 +385,11 @@ function decodeResumeFile(resumeFile) {
     bytes[index] = binary.charCodeAt(index);
   }
   return new File([bytes], resumeFile.filename, { type: resumeFile.mimeType || 'application/pdf' });
+}
+
+function findApplyControl() {
+  return Array.from(document.querySelectorAll('button, a, div[role="button"], span'))
+    .find((element) => /apply( now| for this job)?|submit application|start application/i.test(element.textContent || ''));
 }
 
 function findAttachControl() {
