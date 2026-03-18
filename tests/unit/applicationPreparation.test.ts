@@ -39,6 +39,8 @@ describe('buildBrowserPreparationPacket', () => {
     expect(packet.resume.ready).toBe(true);
     expect(packet.resume.filename).toBe('ada-resume.pdf');
     expect(packet.applicantDetailsText).toMatch(/Ada Lovelace/);
+    expect(packet.automationFields.first_name).toBe('Ada');
+    expect(packet.automationFields.last_name).toBe('Lovelace');
     expect(packet.contactFields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: 'Full name', value: 'Ada Lovelace' }),

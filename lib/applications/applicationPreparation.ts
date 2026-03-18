@@ -29,45 +29,82 @@ export function buildBrowserPreparationPacket(input: {
     UserProfile,
     'phone' | 'location' | 'summary' | 'skills' | 'linkedinUrl' | 'githubUrl' | 'portfolioUrl' | 'targetTitles' | 'visaInfo'
   > | null;
-  resume?: (Pick<ResumeAsset, 'summary' | 'skills'> & { uploadedFile?: Pick<UploadedFile, 'filename' | 'storagePath'> | null }) | null;
+  resume?: ((Pick<ResumeAsset, 'summary' | 'skills'> & Partial<Pick<ResumeAsset, 'parsedName' | 'parsedEmail' | 'parsedPhone' | 'parsedLocation' | 'links' | 'workHistory' | 'education'>>) & {
+    uploadedFile?: Pick<UploadedFile, 'filename' | 'storagePath'> | null;
+  }) | null;
   job: { title: string; company: string; sourceUrl: string; easyApply?: boolean; sourceName?: string | null };
 }): BrowserPreparationPacket {
+  const resolvedName = input.user.name || input.resume?.parsedName || '';
+  const resolvedEmail = input.user.email || input.resume?.parsedEmail || '';
+  const resolvedPhone = input.profile?.phone || input.resume?.parsedPhone || '';
+  const resolvedLocation = input.profile?.location || input.resume?.parsedLocation || '';
   const summary = input.profile?.summary || input.resume?.summary || '';
   const skills = dedupe([...(input.profile?.skills ?? []), ...(input.resume?.skills ?? [])]).slice(0, 8);
   const targetTitles = dedupe(input.profile?.targetTitles ?? []).slice(0, 3);
   const sourceName = input.job.sourceName?.toLowerCase() ?? '';
   const prefillSupport = input.job.easyApply || ['lever', 'ashby', 'workable', 'greenhouse'].some((label) => sourceName.includes(label)) ? 'best_effort' : 'copy_assist';
+  const { firstName, lastName } = splitName(resolvedName);
+  const locationBits = splitLocation(resolvedLocation);
+  const latestExperience = getFirstSectionRecord(input.resume?.workHistory);
+  const latestEducation = getFirstSectionRecord(input.resume?.education);
+  const linkedinUrl = input.profile?.linkedinUrl || input.resume?.links?.find((link) => link.includes('linkedin.com'));
+  const githubUrl = input.profile?.githubUrl || input.resume?.links?.find((link) => link.includes('github.com'));
+  const portfolioUrl =
+    input.profile?.portfolioUrl || input.resume?.links?.find((link) => !link.includes('linkedin.com') && !link.includes('github.com'));
 
   const contactFields = compactFields([
-    ['Full name', input.user.name],
-    ['Email', input.user.email],
-    ['Phone', input.profile?.phone],
-    ['Location', input.profile?.location]
+    ['Full name', resolvedName],
+    ['Email', resolvedEmail],
+    ['Phone', resolvedPhone],
+    ['Location', resolvedLocation]
   ]);
 
   const profileFields = compactFields([
     ['Target roles', targetTitles.join(', ')],
     ['Top skills', skills.join(', ')],
-    ['LinkedIn', input.profile?.linkedinUrl],
-    ['GitHub', input.profile?.githubUrl],
-    ['Portfolio', input.profile?.portfolioUrl],
+    ['LinkedIn', linkedinUrl],
+    ['GitHub', githubUrl],
+    ['Portfolio', portfolioUrl],
     ['Work authorization', input.profile?.visaInfo],
     ['Short summary', summary]
   ]);
 
   const automationFields = Object.fromEntries(
     compactFields([
-      ['name', input.user.name],
-      ['full_name', input.user.name],
-      ['email', input.user.email],
-      ['phone', input.profile?.phone],
-      ['location', input.profile?.location],
-      ['linkedin', input.profile?.linkedinUrl],
-      ['github', input.profile?.githubUrl],
-      ['portfolio', input.profile?.portfolioUrl],
+      ['name', resolvedName],
+      ['full_name', resolvedName],
+      ['legal_name', resolvedName],
+      ['first_name', firstName],
+      ['last_name', lastName],
+      ['email', resolvedEmail],
+      ['phone', resolvedPhone],
+      ['location', resolvedLocation],
+      ['city', locationBits.city],
+      ['state', locationBits.state],
+      ['region', locationBits.state],
+      ['country', locationBits.country],
+      ['linkedin', linkedinUrl],
+      ['linkedin_url', linkedinUrl],
+      ['github', githubUrl],
+      ['website', portfolioUrl],
+      ['portfolio', portfolioUrl],
+      ['portfolio_url', portfolioUrl],
       ['authorization', input.profile?.visaInfo],
+      ['work_authorization', input.profile?.visaInfo],
       ['summary', summary]
-    ]).map((entry) => [entry.label.toLowerCase().replace(/\s+/g, '_'), entry.value])
+    ])
+      .concat(compactFields([
+        ['skills', skills.join(', ')],
+        ['current_company', latestExperience.subtitle],
+        ['current_title', latestExperience.title],
+        ['company', latestExperience.subtitle],
+        ['job_title', latestExperience.title],
+        ['school', latestEducation.subtitle ?? latestEducation.title],
+        ['university', latestEducation.subtitle ?? latestEducation.title],
+        ['degree', latestEducation.title],
+        ['resume_keywords', skills.join(', ')]
+      ]))
+      .map((entry) => [entry.label.toLowerCase().replace(/\s+/g, '_'), entry.value])
   );
   const applicantDetailsText = [...contactFields, ...profileFields].map((entry) => `${entry.label}: ${entry.value}`).join('\n');
 
@@ -135,4 +172,34 @@ function compactFields(entries: Array<[string, string | null | undefined]>) {
 
 function dedupe(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function splitName(value: string) {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return { firstName: value.trim(), lastName: '' };
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(' ')
+  };
+}
+
+function splitLocation(value: string) {
+  const parts = value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return {
+    city: parts[0] ?? '',
+    state: parts[1] ?? '',
+    country: parts[2] ?? ''
+  };
+}
+
+function getFirstSectionRecord(value: unknown) {
+  if (!Array.isArray(value)) return { title: '', subtitle: '' };
+  const first = value.find((item) => item && typeof item === 'object') as { title?: unknown; subtitle?: unknown } | undefined;
+  return {
+    title: typeof first?.title === 'string' ? first.title : '',
+    subtitle: typeof first?.subtitle === 'string' ? first.subtitle : ''
+  };
 }
