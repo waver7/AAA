@@ -18,7 +18,7 @@
     "demo": "npm run prisma:generate && npm run db:push && npm run seed",
     "check": "npm run lint && npm run test",
     "postinstall": "prisma generate",
-    "predev": "npm run prisma:generate",
+    "predev": "npm run prisma:generate && npm run db:push",
     "prebuild": "npm run prisma:generate",
     "preseed": "npm run prisma:generate",
     "predb:push": "npm run prisma:generate"

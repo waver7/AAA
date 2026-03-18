@@ -24,10 +24,23 @@ function isPrismaClientOutOfSyncError(error: unknown) {
   return error instanceof Error && /Unknown argument `(?:phone|location|workHistory|education|certifications)`/.test(error.message);
 }
 
+function isDatabaseSchemaOutOfSyncError(error: unknown) {
+  return (
+    error instanceof Error &&
+    /The column `(?:UserProfile|ResumeAsset)\.[A-Za-z]+` does not exist in the current database\./.test(error.message)
+  );
+}
+
 function toActionablePersistenceError(error: unknown) {
   if (isPrismaClientOutOfSyncError(error)) {
     return new Error(
       'Prisma Client is out of date for the current schema. Run `npm run prisma:generate` and `npm run db:push`, then restart `npm run dev`.'
+    );
+  }
+
+  if (isDatabaseSchemaOutOfSyncError(error)) {
+    return new Error(
+      'Your local database schema is out of date for the current Prisma models. Run `npm run db:push`, then restart `npm run dev`.'
     );
   }
 
@@ -179,8 +192,12 @@ export async function saveManualProfile(input: {
 }
 
 export async function getCurrentProfile() {
-  const user = await getCurrentUser();
-  const profile = await prisma.userProfile.findUnique({ where: { userId: user.id } });
-  const latestResume = await prisma.resumeAsset.findFirst({ where: { userId: user.id }, orderBy: { createdAt: 'desc' } });
-  return { user, profile, latestResume };
+  try {
+    const user = await getCurrentUser();
+    const profile = await prisma.userProfile.findUnique({ where: { userId: user.id } });
+    const latestResume = await prisma.resumeAsset.findFirst({ where: { userId: user.id }, orderBy: { createdAt: 'desc' } });
+    return { user, profile, latestResume };
+  } catch (error) {
+    throw toActionablePersistenceError(error);
+  }
 }

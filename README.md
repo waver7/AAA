@@ -252,7 +252,7 @@ Refresh Prisma locally with:
 npm run prisma:generate
 npm run db:push
 ```
-Then restart the dev server. The repo now auto-runs `prisma generate` during `npm install`, `npm run dev`, `npm run build`, `npm run seed`, and `npm run db:push`, but this note is useful if your local environment was already running with an older generated client.
+Then restart the dev server. The repo now auto-runs `prisma generate` during `npm install`, `npm run dev`, `npm run build`, `npm run seed`, and `npm run db:push`, and `npm run dev` also runs `db:push` first to keep the local database schema aligned for onboarding/profile development.
 
 ---
 
