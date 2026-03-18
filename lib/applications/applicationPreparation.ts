@@ -17,13 +17,17 @@ export type BrowserPreparationPacket = {
     filename?: string;
     note: string;
     automationUploadReady: boolean;
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
     uploadAssistance: 'direct_file_input' | 'attach_prompt' | 'manual_only';
+=======
+>>>>>>> master
   };
   automationEnabled: boolean;
   automationFields: Record<string, string>;
   resumeStoragePath?: string;
 };
 
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
 const DEFAULT_SELF_ID_ANSWERS = {
   requires_sponsorship: 'No',
   requires_visa_sponsorship: 'No',
@@ -40,6 +44,8 @@ const DEFAULT_SELF_ID_ANSWERS = {
   phone_country: 'United States'
 } as const;
 
+=======
+>>>>>>> master
 export function buildBrowserPreparationPacket(input: {
   user: Pick<User, 'name' | 'email'>;
   profile?: Pick<
@@ -63,8 +69,12 @@ export function buildBrowserPreparationPacket(input: {
   const { firstName, lastName } = splitName(resolvedName);
   const locationBits = splitLocation(resolvedLocation);
   const inferredCountry = inferCountry(resolvedLocation, input.profile?.visaInfo);
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
   const phoneCountry = inferPhoneCountry(resolvedPhone, inferredCountry || locationBits.country);
   const sponsorshipAnswer = inferSponsorshipAnswer(input.profile?.visaInfo) || DEFAULT_SELF_ID_ANSWERS.requires_sponsorship;
+=======
+  const sponsorshipAnswer = inferSponsorshipAnswer(input.profile?.visaInfo);
+>>>>>>> master
   const latestExperience = getFirstSectionRecord(input.resume?.workHistory);
   const latestEducation = getFirstSectionRecord(input.resume?.education);
   const linkedinUrl = input.profile?.linkedinUrl || input.resume?.links?.find((link) => link.includes('linkedin.com'));
@@ -85,6 +95,7 @@ export function buildBrowserPreparationPacket(input: {
     ['LinkedIn', linkedinUrl],
     ['GitHub', githubUrl],
     ['Portfolio', portfolioUrl],
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
     ['Work authorization', input.profile?.visaInfo ?? (sponsorshipAnswer === 'No' ? 'No sponsorship required' : '')],
     ['Gender', DEFAULT_SELF_ID_ANSWERS.gender],
     ['Race', DEFAULT_SELF_ID_ANSWERS.race],
@@ -93,6 +104,9 @@ export function buildBrowserPreparationPacket(input: {
     ['Disability status', DEFAULT_SELF_ID_ANSWERS.disability_status],
     ['Transgender', DEFAULT_SELF_ID_ANSWERS.transgender],
     ['Sexual orientation', DEFAULT_SELF_ID_ANSWERS.sexual_orientation],
+=======
+    ['Work authorization', input.profile?.visaInfo],
+>>>>>>> master
     ['Short summary', summary]
   ]);
 
@@ -111,9 +125,12 @@ export function buildBrowserPreparationPacket(input: {
       ['state', locationBits.state],
       ['region', locationBits.state],
       ['country', inferredCountry || locationBits.country],
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
       ['phone_country', phoneCountry.country],
       ['phone_country_code', phoneCountry.display],
       ['country_code', phoneCountry.code],
+=======
+>>>>>>> master
       ['linkedin', linkedinUrl],
       ['linkedin_url', linkedinUrl],
       ['github', githubUrl],
@@ -125,6 +142,7 @@ export function buildBrowserPreparationPacket(input: {
       ['requires_sponsorship', sponsorshipAnswer],
       ['requires_visa_sponsorship', sponsorshipAnswer],
       ['immigration_sponsorship', sponsorshipAnswer],
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
       ['gender', DEFAULT_SELF_ID_ANSWERS.gender],
       ['sex', DEFAULT_SELF_ID_ANSWERS.gender],
       ['race', DEFAULT_SELF_ID_ANSWERS.race],
@@ -136,6 +154,8 @@ export function buildBrowserPreparationPacket(input: {
       ['disability', DEFAULT_SELF_ID_ANSWERS.disability_status],
       ['transgender', DEFAULT_SELF_ID_ANSWERS.transgender],
       ['sexual_orientation', DEFAULT_SELF_ID_ANSWERS.sexual_orientation],
+=======
+>>>>>>> master
       ['summary', summary]
     ])
       .concat(compactFields([
@@ -159,14 +179,22 @@ export function buildBrowserPreparationPacket(input: {
     !input.profile?.location ? 'Add your location so location-required applications are faster to complete.' : '',
     !summary ? 'Add a professional summary to speed up “Why are you interested?” style prompts.' : '',
     skills.length === 0 ? 'Add key skills so you have a concise copy/paste list for application forms.' : '',
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
     !resumeReady ? 'Upload a resume to enable resume-ready preparation and any best-effort file upload automation.' : '',
     resumeReady ? 'Resume upload automation works best on pages with a visible file input; attach-button flows may still require one manual click.' : ''
+=======
+    !resumeReady ? 'Upload a resume to enable resume-ready preparation and any best-effort file upload automation.' : ''
+>>>>>>> master
   ].filter(Boolean);
 
   const checklist = [
     `Review the ${input.job.company} posting in the new tab before you fill anything out.`,
     'Use the copied applicant details to paste common fields into the external application form.',
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
     resumeReady ? 'If the site uses an Attach button, click it when prompted so the browser can finish the resume upload where allowed.' : 'Upload your saved resume/CV manually before submitting.',
+=======
+    resumeReady ? 'Verify the selected resume/CV is the correct version before you submit.' : 'Upload your saved resume/CV manually before submitting.',
+>>>>>>> master
     'Confirm all answers, then submit manually yourself. AutoApply AI does not submit for you.'
   ];
 
@@ -180,8 +208,12 @@ export function buildBrowserPreparationPacket(input: {
     targetTitles.length ? `Target roles: ${targetTitles.join(', ')}.` : '',
     skills.length ? `Top skills: ${skills.join(', ')}.` : '',
     summary ? 'Summary ready for copy/paste.' : '',
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
     resumeReady ? `Resume ready: ${input.resume?.uploadedFile?.filename}.` : 'Resume upload still required.',
     'Self-ID defaults loaded for gender, race, Hispanic/Latino, veteran, disability, transgender, and sexual orientation questions.'
+=======
+    resumeReady ? `Resume ready: ${input.resume?.uploadedFile?.filename}.` : 'Resume upload still required.'
+>>>>>>> master
   ]
     .filter(Boolean)
     .join(' ');
@@ -201,10 +233,16 @@ export function buildBrowserPreparationPacket(input: {
       ready: resumeReady,
       filename: input.resume?.uploadedFile?.filename ?? undefined,
       note: resumeReady
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
         ? 'Saved resume is ready for manual upload and optional best-effort automation. Some sites still require you to click an Attach button before the browser can supply the file.'
         : 'No saved resume is available yet. Upload one in onboarding before continuing.',
       automationUploadReady: Boolean(env.ENABLE_AUTOMATION === 'true' && resumeReady),
       uploadAssistance: resumeReady ? 'attach_prompt' : 'manual_only'
+=======
+        ? 'Saved resume is ready for manual upload and optional best-effort automation.'
+        : 'No saved resume is available yet. Upload one in onboarding before continuing.',
+      automationUploadReady: Boolean(env.ENABLE_AUTOMATION === 'true' && resumeReady)
+>>>>>>> master
     },
     automationEnabled: env.ENABLE_AUTOMATION === 'true',
     automationFields,
@@ -260,6 +298,7 @@ function inferCountry(location: string, visaInfo?: string | null) {
   return '';
 }
 
+<<<<<<< codex/build-mvp-for-autoapply-ai-platform
 function inferPhoneCountry(phone: string, country: string) {
   const normalizedPhone = phone.replace(/\s+/g, '');
   if (/canada/i.test(country)) {
@@ -278,6 +317,8 @@ function inferPhoneCountry(phone: string, country: string) {
   };
 }
 
+=======
+>>>>>>> master
 function inferSponsorshipAnswer(visaInfo?: string | null) {
   if (!visaInfo) return '';
   const normalized = visaInfo.toLowerCase();
