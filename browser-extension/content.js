@@ -133,11 +133,11 @@ window.addEventListener('message', (event) => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== 'AUTOAPPLY_RUN_AUTOFILL') return false;
-  runAutofill(message.payload.fields ?? {}).then((steps) => sendResponse({ ok: true, steps }));
+  runAutofill(message.payload.fields ?? {}, message.payload.resumeFile ?? null).then((steps) => sendResponse({ ok: true, steps }));
   return true;
 });
 
-async function runAutofill(fields) {
+async function runAutofill(fields, resumeFile) {
   const steps = [];
   const usedElements = new Set();
 
@@ -159,8 +159,13 @@ async function runAutofill(fields) {
     steps.push(`Filled ${field}`);
   }
 
-  const resumeHint = maybePromptResumeAttach();
-  if (resumeHint) steps.push(resumeHint);
+  if (resumeFile?.dataBase64) {
+    const resumeStep = await attachResumeFile(resumeFile);
+    if (resumeStep) steps.push(resumeStep);
+  } else {
+    const resumeHint = maybePromptResumeAttach();
+    if (resumeHint) steps.push(resumeHint);
+  }
 
   return steps;
 }
@@ -282,13 +287,77 @@ function normalizeValue(value) {
   return value.toLowerCase().replace(/[^a-z0-9+]+/g, ' ').trim();
 }
 
+async function attachResumeFile(resumeFile) {
+  const directInput = await waitForFileInput(400);
+  if (directInput) {
+    return setResumeOnInput(directInput, resumeFile) ? `Attached resume file: ${resumeFile.filename}` : 'Could not attach resume file';
+  }
+
+  const attachControl = findAttachControl();
+  if (attachControl) {
+    attachControl.click();
+    const revealedInput = await waitForFileInput(1800);
+    if (revealedInput) {
+      return setResumeOnInput(revealedInput, resumeFile) ? `Attached resume file: ${resumeFile.filename}` : 'Could not attach resume file';
+    }
+    return 'Clicked Attach/Upload, but no file input became available for resume attachment.';
+  }
+
+  return 'No resume file input or attach control was available for automatic attachment.';
+}
+
+function setResumeOnInput(input, resumeFile) {
+  try {
+    const file = decodeResumeFile(resumeFile);
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+
+    try {
+      input.files = dataTransfer.files;
+    } catch {
+      Object.defineProperty(input, 'files', {
+        configurable: true,
+        value: dataTransfer.files
+      });
+    }
+
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return input.files?.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function decodeResumeFile(resumeFile) {
+  const binary = atob(resumeFile.dataBase64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new File([bytes], resumeFile.filename, { type: resumeFile.mimeType || 'application/pdf' });
+}
+
+function findAttachControl() {
+  return Array.from(document.querySelectorAll('button, a, div[role="button"], span'))
+    .find((element) => /attach|upload|resume|cv/i.test(element.textContent || ''));
+}
+
+async function waitForFileInput(timeoutMs) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const input = document.querySelector('input[type="file"]');
+    if (input instanceof HTMLInputElement) return input;
+    await wait(100);
+  }
+  return null;
+}
+
 function maybePromptResumeAttach() {
   const fileInput = document.querySelector('input[type="file"]');
   if (fileInput) return null;
 
-  const attachControl = Array.from(document.querySelectorAll('button, a, div[role="button"], span'))
-    .find((element) => /attach|upload|resume|cv/i.test(element.textContent || ''));
-
+  const attachControl = findAttachControl();
   if (!attachControl) return null;
 
   attachControl.scrollIntoView({ block: 'center', behavior: 'smooth' });

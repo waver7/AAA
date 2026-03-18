@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { isAutofillExtensionAvailable, requestExtensionAutofill } from '@/lib/browserExtension/autofillBridge';
+import { ExtensionResumeFile, isAutofillExtensionAvailable, requestExtensionAutofill } from '@/lib/browserExtension/autofillBridge';
 
 type BrowserPreparationPacket = {
   targetUrl: string;
@@ -61,9 +61,11 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
       }
 
       if (extensionAvailable) {
+        const resumeFile = payload.browserPrep.resume.ready ? await loadResumeFileForExtension() : null;
         const extensionResult = await safeRequestExtensionAutofill({
           targetUrl: payload.browserPrep.targetUrl,
-          fields: payload.browserPrep.automationFields
+          fields: payload.browserPrep.automationFields,
+          resumeFile
         });
         if (extensionResult.accepted) {
           setMessage(`Application prepared. We opened the posting${copied ? ', copied your saved applicant details,' : ''} and requested visible autofill in the new tab through the AutoApply browser extension.`);
@@ -154,7 +156,17 @@ async function safeCopyToClipboard(value: string) {
   }
 }
 
-async function safeRequestExtensionAutofill(input: { targetUrl: string; fields: Record<string, string> }) {
+async function loadResumeFileForExtension(): Promise<ExtensionResumeFile | null> {
+  try {
+    const response = await fetch('/api/profile/resume-file');
+    if (!response.ok) return null;
+    return (await response.json()) as ExtensionResumeFile;
+  } catch {
+    return null;
+  }
+}
+
+async function safeRequestExtensionAutofill(input: { targetUrl: string; fields: Record<string, string>; resumeFile?: ExtensionResumeFile | null }) {
   try {
     return await requestExtensionAutofill(input);
   } catch {

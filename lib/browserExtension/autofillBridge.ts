@@ -1,6 +1,13 @@
+export type ExtensionResumeFile = {
+  filename: string;
+  mimeType: string;
+  dataBase64: string;
+};
+
 type AutofillRequest = {
   targetUrl: string;
   fields: Record<string, string>;
+  resumeFile?: ExtensionResumeFile | null;
 };
 
 type ExtensionReply = {

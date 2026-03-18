@@ -6,6 +6,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const job = {
     targetUrl: message.payload.targetUrl,
     fields: message.payload.fields,
+    resumeFile: message.payload.resumeFile ?? null,
     createdAt: Date.now()
   };
   pendingJobs.push(job);
@@ -17,7 +18,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete' || !tab.url) return;
   for (const job of [...pendingJobs]) {
     if (urlsMatch(job.targetUrl, tab.url)) {
-      chrome.tabs.sendMessage(tabId, { type: 'AUTOAPPLY_RUN_AUTOFILL', payload: { fields: job.fields } }, () => {
+      chrome.tabs.sendMessage(tabId, { type: 'AUTOAPPLY_RUN_AUTOFILL', payload: { fields: job.fields, resumeFile: job.resumeFile } }, () => {
         void chrome.runtime.lastError;
       });
       removeJob(job);
@@ -32,7 +33,7 @@ async function attemptDispatch(job) {
   for (const tab of tabs) {
     if (!tab.id || !tab.url || !urlsMatch(job.targetUrl, tab.url)) continue;
     matchedTabs += 1;
-    chrome.tabs.sendMessage(tab.id, { type: 'AUTOAPPLY_RUN_AUTOFILL', payload: { fields: job.fields } }, () => {
+    chrome.tabs.sendMessage(tab.id, { type: 'AUTOAPPLY_RUN_AUTOFILL', payload: { fields: job.fields, resumeFile: job.resumeFile } }, () => {
       void chrome.runtime.lastError;
     });
   }
