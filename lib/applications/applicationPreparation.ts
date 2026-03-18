@@ -89,7 +89,7 @@ export function buildBrowserPreparationPacket(input: {
 
   const prefillSummary =
     prefillSupport === 'best_effort'
-      ? 'We can prepare your details and may run server-side automation for supported sites, but your own browser tab still needs manual paste/review because third-party forms cannot be directly controlled from this web app.'
+      ? 'We can prepare your details and may run server-side automation for supported sites. Install the optional AutoApply browser extension if you want the newly opened page itself to show visible autofill; otherwise use copied details and manual review.'
       : 'This source uses copy-assist mode. We will open the application and copy your saved details so you can paste them into the external form.';
 
   const notes = [

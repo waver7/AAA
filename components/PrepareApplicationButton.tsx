@@ -2,12 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { isAutofillExtensionAvailable, requestExtensionAutofill } from '@/lib/browserExtension/autofillBridge';
 
 type BrowserPreparationPacket = {
   targetUrl: string;
   contactFields: Array<{ label: string; value: string }>;
   profileFields: Array<{ label: string; value: string }>;
   applicantDetailsText: string;
+  automationFields: Record<string, string>;
   checklist: string[];
   warnings: string[];
   prefillSummary: string;
@@ -49,16 +51,30 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
       }
 
       setBrowserPrep(payload.browserPrep);
+      const extensionAvailable = await isAutofillExtensionAvailable();
       if (payload.browserPrep.applicantDetailsText && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(payload.browserPrep.applicantDetailsText);
-        setMessage('Application prepared. We opened the posting and copied your saved applicant details so you can paste them into the external form.');
-      } else {
-        setMessage('Application prepared. We opened the posting and assembled your browser-ready application packet below.');
       }
       if (prepWindow) {
         prepWindow.location.href = payload.browserPrep.targetUrl;
       } else {
         window.open(payload.browserPrep.targetUrl, '_blank', 'noopener,noreferrer');
+      }
+
+      if (extensionAvailable) {
+        const extensionResult = await requestExtensionAutofill({
+          targetUrl: payload.browserPrep.targetUrl,
+          fields: payload.browserPrep.automationFields
+        });
+        if (extensionResult.accepted) {
+          setMessage('Application prepared. We opened the posting, copied your saved applicant details, and requested visible autofill in the new tab through the AutoApply browser extension.');
+        } else {
+          setMessage('Application prepared. We opened the posting and copied your saved applicant details. The browser extension did not accept the autofill request, so use paste fallback if needed.');
+        }
+      } else if (payload.browserPrep.applicantDetailsText) {
+        setMessage('Application prepared. We opened the posting and copied your saved applicant details so you can paste them into the external form. Install the optional AutoApply browser extension for visible autofill in the opened page.');
+      } else {
+        setMessage('Application prepared. We opened the posting and assembled your browser-ready application packet below.');
       }
       router.refresh();
     } catch (error) {
@@ -103,7 +119,7 @@ export function PrepareApplicationButton({ jobPostingId, existing }: { jobPostin
 
           {!browserPrep.visibleBrowserPrefill ? (
             <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
-              We cannot directly type into third-party application pages inside your own browser tab from this web app. Your saved applicant details were prepared for quick paste instead.
+              Want the opened page itself to show filled fields? Install the optional AutoApply browser extension from `browser-extension/`. Without it, this flow falls back to copied applicant details for quick paste.
             </p>
           ) : null}
 

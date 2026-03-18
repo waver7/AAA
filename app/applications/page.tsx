@@ -16,7 +16,7 @@ export default async function ApplicationsPage() {
       <div className="card flex flex-wrap gap-4 text-sm text-slate-300">
         <span>Prepared action opens the external application in a new tab and copies your saved applicant details.</span>
         <span>{prepReadiness.resumeReady ? 'Resume ready for upload.' : 'Resume missing — upload one in onboarding.'}</span>
-        <span>{prepReadiness.automationEnabled ? 'Server-side automation previews are enabled for supported sites, but your browser tab still uses copy-assist.' : 'Automation is off; copy-assist remains available.'}</span>
+        <span>{prepReadiness.automationEnabled ? 'Install the optional AutoApply browser extension if you want the opened page itself to show visible autofill.' : 'Automation is off; install the optional extension if you want visible autofill in the opened page.'}</span>
       </div>
 
       {applications.length === 0 ? (
@@ -38,7 +38,7 @@ export default async function ApplicationsPage() {
                     rows.map((row) => {
                       const latestRun = row.automationRuns[0];
                       const prefillSummary = row.jobPosting.easyApply
-                        ? 'Copied applicant details plus optional automation preview'
+                        ? 'Visible autofill with extension, otherwise copied details + optional automation preview'
                         : 'Copy-assist handoff with manual review';
                       return (
                         <article key={row.id} className="rounded-lg border border-slate-700 bg-slate-800/60 p-3 text-xs text-slate-300">

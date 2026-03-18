@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     job: { title: job.title, company: job.company, sourceUrl: job.sourceUrl, easyApply: job.easyApply, sourceName: job.source?.name }
   });
 
-  const clientPacket = (({ automationFields: _automationFields, resumeStoragePath: _resumeStoragePath, ...packet }) => packet)(browserPrep);
+  const clientPacket = (({ resumeStoragePath: _resumeStoragePath, ...packet }) => packet)(browserPrep);
 
   const application = existing
     ? await prisma.application.update({

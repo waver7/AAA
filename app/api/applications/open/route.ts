@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
   });
 
-  const clientPacket = (({ automationFields: _automationFields, resumeStoragePath: _resumeStoragePath, ...packet }) => packet)(browserPrep);
+  const clientPacket = (({ resumeStoragePath: _resumeStoragePath, ...packet }) => packet)(browserPrep);
 
   let automationResult: Awaited<ReturnType<typeof runAutofillPreparation>> | null = null;
   let automationError: string | null = null;

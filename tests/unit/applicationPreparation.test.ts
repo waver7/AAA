@@ -48,6 +48,6 @@ describe('buildBrowserPreparationPacket', () => {
     expect(packet.profileFields).toEqual(expect.arrayContaining([expect.objectContaining({ label: 'Work authorization' })]));
     expect(packet.warnings.join(' ')).toMatch(/phone number/i);
     expect(packet.notes).toMatch(/Prepared browser handoff/i);
-    expect(packet.prefillSummary).toMatch(/cannot be directly controlled/i);
+    expect(packet.prefillSummary).toMatch(/browser extension/i);
   });
 });

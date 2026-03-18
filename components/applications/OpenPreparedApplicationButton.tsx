@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { isAutofillExtensionAvailable, requestExtensionAutofill } from '@/lib/browserExtension/autofillBridge';
 
 type OpenPreparedApplicationButtonProps = {
   applicationId: string;
@@ -18,6 +19,7 @@ export function OpenPreparedApplicationButton({ applicationId, resumeReady, pref
     contactFields: Array<{ label: string; value: string }>;
     profileFields: Array<{ label: string; value: string }>;
     applicantDetailsText: string;
+    automationFields: Record<string, string>;
     resume: { ready: boolean; filename?: string; note: string; automationUploadReady: boolean };
     prefillSummary: string;
     prefillSupport: 'best_effort' | 'copy_assist';
@@ -47,6 +49,7 @@ export function OpenPreparedApplicationButton({ applicationId, resumeReady, pref
 
       setPrepDetails(payload.browserPrep);
       setAutomationSteps(payload.automationResult?.steps ?? []);
+      const extensionAvailable = await isAutofillExtensionAvailable();
       if (payload.browserPrep.applicantDetailsText && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(payload.browserPrep.applicantDetailsText);
       }
@@ -62,7 +65,19 @@ export function OpenPreparedApplicationButton({ applicationId, resumeReady, pref
         : payload.automationError
           ? ` Automation fallback: ${payload.automationError}`
           : '';
-      setMessage(`Opened the application in a new tab and copied your saved applicant details for paste. ${payload.browserPrep.prefillSummary}${automationNote}`);
+      if (extensionAvailable) {
+        const extensionResult = await requestExtensionAutofill({
+          targetUrl: payload.browserPrep.targetUrl,
+          fields: payload.browserPrep.automationFields
+        });
+        if (extensionResult.accepted) {
+          setMessage(`Opened the application in a new tab, copied your saved applicant details, and requested visible autofill through the AutoApply browser extension.${automationNote}`);
+        } else {
+          setMessage(`Opened the application in a new tab and copied your saved applicant details for paste. The extension did not accept the autofill request.${automationNote}`);
+        }
+      } else {
+        setMessage(`Opened the application in a new tab and copied your saved applicant details for paste. Install the optional AutoApply browser extension for visible autofill in the opened page.${automationNote}`);
+      }
     } catch (error) {
       prepWindow?.close();
       setBusy(false);
@@ -93,7 +108,7 @@ export function OpenPreparedApplicationButton({ applicationId, resumeReady, pref
           <p className="mt-1 text-slate-400">{prepDetails.prefillSummary}</p>
           {!prepDetails.visibleBrowserPrefill ? (
             <p className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-amber-100">
-              For security reasons, AutoApply AI cannot directly type into third-party job sites in your live browser tab. Use the copied details below to paste quickly, and treat any automation result as a separate preview.
+              If you want the opened page itself to show filled fields, install the optional AutoApply browser extension from `browser-extension/`. Without it, use the copied details below to paste quickly.
             </p>
           ) : null}
           <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-300">
