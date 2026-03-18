@@ -3,11 +3,17 @@
 Thanks for helping improve AutoApply AI.
 
 ## Fast local setup
-1. `cp .env.example .env`
-2. `docker compose up -d`
+1. `git clone https://github.com/waver7/AAA.git`
+2. `cd AAA`
 3. `npm install`
-4. `npm run demo`
-5. `npm run dev`
+4. Create env file:
+   - macOS/Linux: `cp .env.example .env`
+   - PowerShell: `Copy-Item .env.example .env`
+5. `docker compose up -d`
+6. `npm run demo`
+7. `npm run dev`
+
+For full first-run guidance (including Windows issues and fixes), read [`docs/SETUP.md`](docs/SETUP.md).
 
 ## Scripts
 - `npm run dev` — start local app
@@ -23,6 +29,7 @@ Thanks for helping improve AutoApply AI.
 - Keep modules small and composable.
 - Add tests for changed scoring/parsing/env behavior.
 - Keep automation human-in-the-loop and never bypass final approval.
+- Do not upgrade dependencies before first successful local run on your machine.
 
 ## Pull requests
 - Keep PRs focused.

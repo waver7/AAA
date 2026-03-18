@@ -46,14 +46,81 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 ---
 
 ## ⚡ Quickstart (under 5 minutes)
+> Docker is required for the default local PostgreSQL + Redis setup.
+
+### macOS/Linux
 ```bash
-cp .env.example .env
+git clone https://github.com/waver7/AAA.git
+cd AAA
 npm install
+cp .env.example .env
+docker compose up -d
+npm run db:push
+npm run seed
 npm run dev
 ```
+
+### Windows (PowerShell)
+```powershell
+git clone https://github.com/waver7/AAA.git
+cd AAA
+npm install
+Copy-Item .env.example .env
+docker compose up -d
+npm run db:push
+npm run seed
+npm run dev
+```
+
 Open `http://localhost:3000`.
 
-> Core app starts in demo-friendly mode by default.
+> First run should be done in **demo mode** (default) before changing dependencies or infra settings.
+
+---
+
+## 🪟 Windows setup (verified flow)
+The following flow has been validated on Windows using:
+- Node `v24.14.0`
+- npm `11.9.0`
+
+### 1) Verify Node/npm
+```powershell
+node -v
+npm -v
+```
+
+### 2) If npm fails in PowerShell with execution policy error
+You may see:
+`npm.ps1 cannot be loaded because running scripts is disabled on this system`
+
+Fix:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+Get-ExecutionPolicy -List
+```
+
+### 3) Docker Desktop + WSL note
+If Docker is unavailable (`docker is not recognized`) or Docker Desktop fails to start, update WSL:
+```powershell
+wsl --update
+```
+Then restart Docker Desktop and try again.
+
+### 4) Full successful Windows setup path
+```powershell
+git clone https://github.com/waver7/AAA.git
+cd AAA
+npm install
+Copy-Item .env.example .env
+docker compose up -d
+npm run db:push
+npm run seed
+npm run dev
+```
+
+App URL: `http://localhost:3000`
+
+For deeper setup details: [`docs/SETUP.md`](docs/SETUP.md).
 
 ---
 
@@ -62,7 +129,7 @@ Demo mode lets you run without API keys and still generate sample outputs.
 
 ```bash
 docker compose up -d
-cp .env.example .env
+cp .env.example .env   # PowerShell: Copy-Item .env.example .env
 npm install
 npm run demo
 npm run dev
@@ -124,9 +191,44 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## 🛠️ Troubleshooting
 
-### `npm install` fails on Playwright packages
-Playwright is optional in this repo. Installation should continue because it is listed under `optionalDependencies`.
-If your environment hard-fails optional installs, use:
+### 1) PowerShell: `npm.ps1 cannot be loaded because running scripts is disabled`
+Even with Node/npm installed correctly, npm can fail in PowerShell due to execution policy.
+
+Fix:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+Get-ExecutionPolicy -List
+```
+
+### 2) `npm install` ENOENT / `package.json` not found
+You are likely not in the repo root. Make sure you run:
+```bash
+cd AAA
+```
+then run npm commands.
+
+### 3) `docker` not recognized
+Docker Desktop may not be installed, not running, or not available on PATH.
+Install/open Docker Desktop, then retry.
+
+### 4) Docker Desktop cannot start
+Try:
+- opening Docker Desktop manually
+- restarting your PC
+- updating WSL:
+  ```powershell
+  wsl --update
+  ```
+
+### 5) Compose warning: `version is obsolete`
+This warning is harmless for local startup and does not block containers from running.
+
+### 6) Prisma update notice appears during install
+This is informational. Do **not** upgrade dependencies before your first successful local run.
+Get the app running first, then evaluate upgrades in a separate PR.
+
+### Playwright install fails in restricted environments
+Playwright is optional in this repo. If your environment hard-fails optional installs, use:
 ```bash
 npm install --no-optional
 ```
